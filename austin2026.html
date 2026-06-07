@@ -373,8 +373,9 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
 
 function makeIcon(color, selected) {
   const base = selected ? 26 : 20;
+  const pinColor = selected ? '#1a1917' : '#c8a96e';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="${base}" height="${base * 1.5}">
-    <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24C24 5.373 18.627 0 12 0z" fill="${color}"/>
+    <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24C24 5.373 18.627 0 12 0z" fill="${pinColor}"/>
     <circle cx="12" cy="12" r="4.5" fill="rgba(255,255,255,.9)"/>
   </svg>`;
   return L.divIcon({
