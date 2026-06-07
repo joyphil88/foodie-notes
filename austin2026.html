@@ -158,20 +158,17 @@
     .place-meta { font-size: .68rem; color: var(--muted); margin-top: 3px; }
 
     .place-maps {
-      font-size: .65rem;
-      font-weight: 600;
-      letter-spacing: .05em;
-      text-transform: uppercase;
+      font-size: .68rem;
       color: var(--muted);
       text-decoration: none;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 1px;
-      margin-top: 6px;
-      display: inline-block;
+      margin-top: 3px;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
       transition: color .15s;
     }
 
-    .place-maps:hover { color: var(--text); border-color: var(--text); }
+    .place-maps:hover { color: var(--text); }
 
     /* ── Popup ── */
     .leaflet-popup-content-wrapper {
@@ -432,8 +429,7 @@ PLACES.forEach((p, i) => {
       <div class="popup-cat">${CATEGORIES[p.cat].label}</div>
       <div class="popup-name">${p.name}</div>
       <div class="popup-note">${p.note}</div>
-      <div class="popup-addr">${p.addr}, Austin TX</div>
-      <a class="popup-link" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener">Open in Maps →</a>
+      <a class="popup-link" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener">${p.addr}, Austin TX ↗</a>
     </div>`, { maxWidth: 290 });
   marker.on('click', () => { selectPlace(i, false); });
   markers.push(marker);
@@ -487,7 +483,7 @@ function buildList() {
         <div class="place-name">${p.name}</div>
         <div class="place-note">${p.note}</div>
         <div class="place-meta">${cat.label} &nbsp;·&nbsp; ${p.addr}</div>
-        <a class="place-maps" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Open in Maps →</a>
+        <a class="place-maps" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${p.addr} ↗</a>
       </div>`;
     item.onclick = () => selectPlace(i, true);
     listEl.appendChild(item);
