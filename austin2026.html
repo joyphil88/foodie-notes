@@ -482,7 +482,7 @@ function buildList() {
       <div>
         <div class="place-name">${p.name}</div>
         <div class="place-note">${p.note}</div>
-        <div class="place-meta">${cat.label} &nbsp;·&nbsp; ${p.addr}</div>
+        <div class="place-meta">${cat.label}</div>
         <a class="place-maps" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${p.addr} ↗</a>
       </div>`;
     item.onclick = () => selectPlace(i, true);
