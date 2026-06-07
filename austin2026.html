@@ -457,7 +457,7 @@ function buildFilters() {
     const chip = document.createElement('button');
     chip.className = 'chip' + (activeFilter === key ? ' active' : '');
     chip.textContent = cat.label;
-    chip.onclick = () => setFilter(key);
+    chip.onclick = () => setFilter(activeFilter === key ? 'All' : key);
     filtersEl.appendChild(chip);
   });
 }
