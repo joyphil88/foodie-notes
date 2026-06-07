@@ -50,6 +50,22 @@
       border-bottom: 1px solid var(--border);
     }
 
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: .65rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-decoration: none;
+      margin-bottom: 14px;
+      transition: color .15s;
+    }
+
+    .back-link:hover { color: var(--text); }
+
     .trip-label {
       font-size: .62rem;
       font-weight: 600;
@@ -265,6 +281,7 @@
 <div id="app">
   <aside id="sidebar">
     <div class="sidebar-header">
+      <a class="back-link" href="index.html">← Foodie Notes</a>
       <div class="trip-label">Food List</div>
       <h1>Austin<span>Texas · 2026</span></h1>
       <div id="count-label">Loading…</div>
