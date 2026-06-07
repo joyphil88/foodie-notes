@@ -484,7 +484,6 @@ function buildList() {
     item.className = 'place-item' + (selectedIdx === i ? ' selected' : '');
     item.dataset.idx = i;
     item.innerHTML = `
-      <div class="dot" style="background:#c8a96e"></div>
       <div>
         <div class="place-name">${p.name}</div>
         <div class="place-note">${p.note}</div>
