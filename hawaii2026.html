@@ -466,7 +466,7 @@ PLACES.forEach((p, i) => {
       <div class="popup-cat">${CATEGORIES[p.cat].label}</div>
       <div class="popup-name">${p.name}</div>
       <div class="popup-note">${p.note}</div>
-      <a class="popup-link" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener">${p.addr} ↗</a>
+      <a class="popup-link" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener">${p.addr} →</a>
     </div>`, { maxWidth: 290 });
   marker.on('click', () => { selectPlace(i, false); });
   markers.push(marker);
@@ -519,7 +519,7 @@ function buildList() {
       <div>
         <div class="place-name">${p.name}</div>
         <div class="place-note">${p.note}</div>
-        <div class="place-meta">${cat.label} &nbsp;·&nbsp; <a class="place-maps" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${p.addr} ↗</a></div>
+        <div class="place-meta">${cat.label} &nbsp;·&nbsp; <a class="place-maps" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${p.addr} →</a></div>
       </div>`;
     item.onclick = () => selectPlace(i, true);
     listEl.appendChild(item);
