@@ -1,6 +1,6 @@
 const { getStore, connectLambda } = require('@netlify/blobs');
 
-const emptyState = () => ({ custom: [], triedIds: [], deletedIds: [], edits: {} });
+const emptyState = () => ({ custom: [], triedIds: [], pinnedIds: [], deletedIds: [], edits: {} });
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 exports.handler = async (event) => {
@@ -15,6 +15,7 @@ exports.handler = async (event) => {
       const data = (await store.get(city, { type: 'json' })) || emptyState();
       data.categories = data.categories || { custom: [], labels: {}, deletedKeys: [] };
       data.edits = data.edits || {};
+      data.pinnedIds = data.pinnedIds || [];
       return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(data) };
     }
 
@@ -56,19 +57,25 @@ exports.handler = async (event) => {
         data.deletedIds.push(id);
       }
       data.triedIds = data.triedIds.filter((t) => t !== id);
+      data.pinnedIds = (data.pinnedIds || []).filter((t) => t !== id);
       if (data.edits) delete data.edits[id];
       await store.setJSON(city, data);
       return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
     }
 
     if (method === 'PATCH') {
-      const { city, id, tried, edits } = JSON.parse(event.body || '{}');
+      const { city, id, tried, pinned, edits } = JSON.parse(event.body || '{}');
       if (!city || !id) return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'city and id required' }) };
       const data = (await store.get(city, { type: 'json' })) || emptyState();
       if (typeof tried === 'boolean') {
         const set = new Set(data.triedIds);
         if (tried) set.add(id); else set.delete(id);
         data.triedIds = [...set];
+      }
+      if (typeof pinned === 'boolean') {
+        const set = new Set(data.pinnedIds || []);
+        if (pinned) set.add(id); else set.delete(id);
+        data.pinnedIds = [...set];
       }
       if (edits && typeof edits === 'object') {
         data.edits = data.edits || {};

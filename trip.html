@@ -13,6 +13,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
+      color-scheme: light;
       --bg: #fafaf8;
       --surface: #ffffff;
       --border: #e8e6e1;
@@ -370,11 +371,20 @@
       .place-note { font-size: .82rem; }
       .place-meta { font-size: .78rem; }
       .place-item { padding: 15px 18px; }
+      #place-list { padding-bottom: 96px; }
     }
 
     /* ── Add place button ── */
+    .header-main {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
     .add-place-btn {
-      margin-top: 12px;
+      flex-shrink: 0;
+      margin-top: 6px;
       font-size: .68rem;
       font-weight: 600;
       letter-spacing: .04em;
@@ -414,6 +424,35 @@
     .tried-toggle:hover { border-color: var(--text); }
     .tried-toggle.tried { background: #6b8e5a; border-color: #6b8e5a; color: #fff; }
     .tried-toggle-spacer { flex-shrink: 0; width: 20px; }
+
+    .pin-toggle {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      color: var(--border);
+      cursor: pointer;
+      transition: color .15s;
+      padding: 0;
+    }
+    .pin-toggle:hover { color: var(--muted); }
+    .pin-toggle.pinned { color: #c8a96e; }
+    .pin-toggle.pinned svg { fill: currentColor; }
+
+    .hotel-icon-wrap {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+    }
 
     .place-item.tried .place-name { color: var(--muted); }
 
@@ -562,6 +601,38 @@
 
     .modal textarea { resize: vertical; min-height: 56px; }
 
+    .modal select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23888580' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 10px 7px;
+      padding-right: 32px;
+      cursor: pointer;
+    }
+
+    .name-row { display: flex; gap: 8px; align-items: stretch; }
+    .name-row input { flex: 1; }
+
+    .autofill-btn {
+      flex-shrink: 0;
+      font-family: 'Inter', sans-serif;
+      font-size: .68rem;
+      font-weight: 600;
+      white-space: nowrap;
+      padding: 0 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--light);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .autofill-btn:hover { border-color: var(--text); }
+    .autofill-btn:disabled { opacity: .5; cursor: default; }
+
     .modal-actions {
       display: flex;
       gap: 10px;
@@ -605,9 +676,11 @@
   <aside id="sidebar">
     <div class="sidebar-header">
       <a class="back-link" href="index.html">← Foodie Notes</a>
-      <h1 id="trip-title">Loading…<span id="trip-subtitle"></span></h1>
+      <div class="header-main">
+        <h1 id="trip-title">Loading…<span id="trip-subtitle"></span></h1>
+        <button class="add-place-btn" onclick="openAddModal()">+ Add place</button>
+      </div>
       <div id="count-label"></div>
-      <button class="add-place-btn" onclick="openAddModal()">+ Add place</button>
     </div>
     <div id="filters"></div>
     <div id="place-list"></div>
@@ -636,7 +709,10 @@
     <h2 id="add-modal-title">Add a place</h2>
     <form id="add-form">
       <label for="add-name">Name</label>
-      <input type="text" id="add-name" required />
+      <div class="name-row">
+        <input type="text" id="add-name" required />
+        <button type="button" class="autofill-btn" id="autofill-btn" onclick="autoFillFromName()">✨ Auto-fill</button>
+      </div>
       <label for="add-cat">Category</label>
       <select id="add-cat"></select>
       <label for="add-addr">Address</label>
@@ -670,19 +746,24 @@ let CITY_LABEL = '';
 const API = '/.netlify/functions/places';
 const CATEGORIES_API = '/.netlify/functions/categories';
 const TRIPS_API = '/.netlify/functions/trips';
+const ENRICH_API = '/.netlify/functions/enrich';
 const CATEGORY_PALETTE = ['#c0392b', '#8e44ad', '#16a085', '#e67e22', '#2980b9', '#27ae60', '#7f8c8d', '#c0960c', '#2c3e50', '#8e5e3d'];
+const HOTEL_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>`;
+const PIN_ICON_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>`;
 
 // ── Map ──────────────────────────────────────────────────────────────
 let map;
 
-function makeIcon(selected, tried, isHotel) {
+function makeIcon(selected, tried, isHotel, pinned) {
   const base = selected ? 26 : 20;
   let pinColor = isHotel ? '#1a1917' : '#c8a96e';
   if (tried) pinColor = '#6b8e5a';
   if (selected) pinColor = '#1a1917';
+  const badge = pinned ? '<circle cx="19" cy="6" r="4.5" fill="#c8a96e" stroke="#fff" stroke-width="1.5"/>' : '';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="${base}" height="${base * 1.5}">
     <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24C24 5.373 18.627 0 12 0z" fill="${pinColor}"/>
     <circle cx="12" cy="12" r="4.5" fill="rgba(255,255,255,.9)"/>
+    ${badge}
   </svg>`;
   return L.divIcon({
     html: svg,
@@ -707,9 +788,10 @@ function popupHtml(p) {
       <div class="popup-cat">${CATEGORIES[p.cat].label}</div>
       <div class="popup-name">${p.name}</div>
       <div class="popup-note">${p.note}</div>
-      <a class="popup-link" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener">${p.addr} →</a>
+      <a class="popup-link" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener">${p.addr}&nbsp;→</a>
       <div class="popup-actions">
         ${p.cat === 'Hotel' ? '' : `<button class="popup-action" onclick="toggleTried('${p.id}', event)">${p.tried ? '✓ Tried' : 'Mark tried'}</button>`}
+        <button class="popup-action" onclick="togglePinned('${p.id}', event)">${p.pinned ? '★ Pinned' : 'Pin'}</button>
         <button class="popup-action" onclick="openEditModal('${p.id}', event)">Edit</button>
         <button class="popup-action danger" onclick="deletePlace('${p.id}', event)">Remove</button>
       </div>
@@ -720,17 +802,17 @@ function refreshMarkerIcon(id) {
   const p = PLACES.find(pp => pp.id === id);
   const marker = markers.get(id);
   if (!p || !marker) return;
-  marker.setIcon(makeIcon(selectedId === id, p.tried, p.cat === 'Hotel'));
+  marker.setIcon(makeIcon(selectedId === id, p.tried, p.cat === 'Hotel', p.pinned));
   if (marker.isPopupOpen()) marker.setPopupContent(popupHtml(p));
 }
 
 function addMarkerFor(p) {
   const marker = L.marker([p.lat, p.lng], {
-    icon: makeIcon(false, p.tried, p.cat === 'Hotel'),
+    icon: makeIcon(false, p.tried, p.cat === 'Hotel', p.pinned),
     zIndexOffset: p.cat === 'Hotel' ? 1000 : 0,
   })
     .addTo(map)
-    .bindPopup(() => popupHtml(p), { maxWidth: 290 });
+    .bindPopup(() => popupHtml(p), { maxWidth: 290, autoPanPaddingTopLeft: L.point(12, 76) });
   marker.on('click', () => { selectPlace(p.id, false); });
   marker.on('popupclose', () => {
     if (selectedId === p.id) {
@@ -750,18 +832,21 @@ async function loadRemoteState() {
     const data = await res.json();
     const deletedIds = new Set(data.deletedIds || []);
     const triedIds = new Set(data.triedIds || []);
+    const pinnedIds = new Set(data.pinnedIds || []);
     const edits = data.edits || {};
     for (let i = PLACES.length - 1; i >= 0; i--) {
       if (deletedIds.has(PLACES[i].id)) PLACES.splice(i, 1);
     }
     PLACES.forEach(p => {
       p.tried = triedIds.has(p.id);
+      p.pinned = pinnedIds.has(p.id);
       if (edits[p.id]) Object.assign(p, edits[p.id]);
     });
     (data.custom || []).forEach(p => {
       if (edits[p.id]) Object.assign(p, edits[p.id]);
       p.custom = true;
       p.tried = triedIds.has(p.id);
+      p.pinned = pinnedIds.has(p.id);
       PLACES.push(p);
     });
 
@@ -824,7 +909,7 @@ function buildFilters() {
 
   const editToggle = document.createElement('button');
   editToggle.className = 'chip-kebab' + (categoriesEditMode ? ' active' : '');
-  editToggle.textContent = categoriesEditMode ? 'Done' : '⋮';
+  editToggle.textContent = categoriesEditMode ? 'Done' : '⋯';
   editToggle.title = categoriesEditMode ? 'Done editing categories' : 'Edit categories';
   editToggle.onclick = () => { categoriesEditMode = !categoriesEditMode; buildFilters(); };
   filtersEl.appendChild(editToggle);
@@ -939,21 +1024,29 @@ function buildList() {
     return;
   }
 
-  visible.forEach(p => {
+  const sorted = [...visible].sort((a, b) => {
+    const aHotel = a.cat === 'Hotel', bHotel = b.cat === 'Hotel';
+    if (aHotel !== bHotel) return aHotel ? -1 : 1;
+    if (!aHotel && a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  sorted.forEach(p => {
     const cat = CATEGORIES[p.cat];
     const isHotel = p.cat === 'Hotel';
     const item = document.createElement('div');
     item.className = 'place-item' + (selectedId === p.id ? ' selected' : '') + (p.tried ? ' tried' : '');
     item.dataset.id = p.id;
     item.innerHTML = `
-      ${isHotel ? '<span class="tried-toggle-spacer"></span>' : `<button class="tried-toggle${p.tried ? ' tried' : ''}" title="${p.tried ? 'Mark as not tried' : 'Mark as tried'}" onclick="toggleTried('${p.id}', event)">✓</button>`}
+      ${isHotel ? `<span class="hotel-icon-wrap" title="Hotel">${HOTEL_ICON_SVG}</span>` : `<button class="tried-toggle${p.tried ? ' tried' : ''}" title="${p.tried ? 'Mark as not tried' : 'Mark as tried'}" onclick="toggleTried('${p.id}', event)">✓</button>`}
       <div class="place-item-body">
         <div class="place-name">${p.name}</div>
         <div class="place-note">${p.note}</div>
-        <div class="place-meta">${cat ? cat.label : p.cat} &nbsp;·&nbsp; <a class="place-maps" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${p.addr} →</a></div>
+        <div class="place-meta">${cat ? cat.label : p.cat} &nbsp;·&nbsp; <a class="place-maps" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${p.addr}&nbsp;→</a></div>
       </div>
+      <button class="pin-toggle${p.pinned ? ' pinned' : ''}" title="${p.pinned ? 'Unpin' : 'Pin'}" onclick="togglePinned('${p.id}', event)">${PIN_ICON_SVG}</button>
       <div class="item-menu-wrap">
-        <button class="item-menu-btn" title="More" onclick="toggleItemMenu('${p.id}', event)">⋮</button>
+        <button class="item-menu-btn" title="More" onclick="toggleItemMenu('${p.id}', event)">⋯</button>
         <div class="item-menu${openMenuId === p.id ? ' open' : ''}">
           <button onclick="openEditModal('${p.id}', event)">Edit</button>
           <button class="danger" onclick="deletePlace('${p.id}', event)">Delete</button>
@@ -1039,6 +1132,28 @@ async function toggleTried(id, ev) {
   }
 }
 
+async function togglePinned(id, ev) {
+  if (ev) ev.stopPropagation();
+  const p = PLACES.find(pp => pp.id === id);
+  if (!p) return;
+  p.pinned = !p.pinned;
+  refreshMarkerIcon(id);
+  buildList();
+  try {
+    const res = await authedFetch(API, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ city: CITY, id, pinned: p.pinned }),
+    });
+    if (!res.ok) throw new Error('save failed');
+  } catch (e) {
+    console.error('Failed to save pinned state', e);
+    p.pinned = !p.pinned;
+    refreshMarkerIcon(id);
+    buildList();
+  }
+}
+
 async function deletePlace(id, ev) {
   if (ev) ev.stopPropagation();
   if (!confirm('Remove this place from your list?')) return;
@@ -1088,6 +1203,53 @@ function populateCategorySelect() {
   newOpt.textContent = '+ New category…';
   addCatSelect.appendChild(newOpt);
   if (CATEGORIES[prevValue]) addCatSelect.value = prevValue;
+}
+
+function categoryKeyForLabel(label) {
+  if (!label) return null;
+  const norm = label.trim().toLowerCase();
+  const entry = Object.entries(CATEGORIES).find(([key, cat]) =>
+    cat.label.trim().toLowerCase() === norm || key.trim().toLowerCase() === norm
+  );
+  return entry ? entry[0] : null;
+}
+
+const autofillBtn = document.getElementById('autofill-btn');
+
+async function autoFillFromName() {
+  const name = document.getElementById('add-name').value.trim();
+  if (!name) { document.getElementById('add-name').focus(); return; }
+
+  addError.classList.remove('show');
+  autofillBtn.disabled = true;
+  autofillBtn.textContent = 'Looking up…';
+
+  try {
+    const exampleNotes = PLACES.filter(p => p.note && p.cat !== 'Hotel').slice(0, 3).map(p => p.note);
+    const categories = Object.values(CATEGORIES).map(c => c.label);
+    const res = await authedFetch(ENRICH_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, cityLabel: CITY_LABEL, categories, exampleNotes }),
+    });
+    if (res.status === 401) throw new Error('unauthorized');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'lookup failed');
+
+    document.getElementById('add-name').value = data.name;
+    document.getElementById('add-addr').value = data.address;
+    document.getElementById('add-note').value = data.note || '';
+    const key = categoryKeyForLabel(data.category);
+    if (key) addCatSelect.value = key;
+  } catch (err) {
+    addError.textContent = err.message === 'unauthorized'
+      ? 'Wrong passcode — try again.'
+      : `Couldn't find "${name}" — fill in the details manually.`;
+    addError.classList.add('show');
+  } finally {
+    autofillBtn.disabled = false;
+    autofillBtn.textContent = '✨ Auto-fill';
+  }
 }
 
 addCatSelect.addEventListener('change', async () => {
@@ -1231,6 +1393,12 @@ addForm.addEventListener('submit', async (e) => {
 });
 
 // ── Mobile map toggle ─────────────────────────────────────────────────
+function fitAllMarkers() {
+  if (PLACES.length === 0) return;
+  const bounds = L.latLngBounds(PLACES.map(p => [p.lat, p.lng]));
+  map.fitBounds(bounds, { padding: [48, 48], maxZoom: 15 });
+}
+
 let mapVisible = false;
 
 function toggleMobileView() {
@@ -1251,6 +1419,8 @@ function toggleMobileView() {
         map.setView([p.lat, p.lng], Math.max(map.getZoom(), 15));
         marker.openPopup();
       }
+    } else {
+      fitAllMarkers();
     }
   }, 50);
 }
@@ -1323,6 +1493,7 @@ async function init() {
 
   await loadRemoteState();
   PLACES.forEach(addMarkerFor);
+  fitAllMarkers();
   populateCategorySelect();
   buildFilters();
   buildList();

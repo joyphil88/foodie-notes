@@ -276,7 +276,7 @@
     <div class="header-row">
       <h1>Foodie Notes</h1>
       <div class="page-menu-wrap">
-        <button class="page-menu-btn" title="More" onclick="toggleNewTripMenu(event)">⋮</button>
+        <button class="page-menu-btn" title="More" onclick="toggleNewTripMenu(event)">⋯</button>
         <div class="page-menu" id="new-trip-menu">
           <button onclick="openTripModal()">+ New foodie note</button>
         </div>
@@ -379,7 +379,7 @@ function renderTrips() {
         <span class="arrow">→</span>
       </a>
       <div class="trip-menu-wrap">
-        <button class="trip-menu-btn" title="More" onclick="toggleTripMenu('${trip.slug}', event)">⋮</button>
+        <button class="trip-menu-btn" title="More" onclick="toggleTripMenu('${trip.slug}', event)">⋯</button>
         <div class="trip-menu${openTripMenuSlug === trip.slug ? ' open' : ''}">
           <button onclick="openTripModal('${trip.slug}', event)">Edit</button>
           <button class="danger" onclick="deleteTrip('${trip.slug}', event)">Delete</button>
