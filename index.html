@@ -11,11 +11,20 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --bg: #fafaf8;
+      --surface: #ffffff;
+      --border: #e8e6e1;
+      --text: #1a1917;
+      --muted: #888580;
+      --light: #f3f2ee;
+    }
+
     html, body {
       min-height: 100%;
       font-family: 'Inter', sans-serif;
-      background: #fafaf8;
-      color: #1a1917;
+      background: var(--bg);
+      color: var(--text);
       -webkit-font-smoothing: antialiased;
     }
 
@@ -32,8 +41,15 @@
       font-weight: 600;
       letter-spacing: .16em;
       text-transform: uppercase;
-      color: #888580;
+      color: var(--muted);
       margin-bottom: 10px;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
     }
 
     h1 {
@@ -45,18 +61,27 @@
 
     .trip-list { list-style: none; }
 
+    .trip-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .trip-item:first-child { border-top: 1px solid var(--border); }
+
     .trip-item a {
+      flex: 1;
+      min-width: 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 20px 0;
-      border-bottom: 1px solid #e8e6e1;
       text-decoration: none;
       color: inherit;
       transition: opacity .15s;
     }
 
-    .trip-item:first-child a { border-top: 1px solid #e8e6e1; }
     .trip-item a:hover { opacity: .5; }
 
     .trip-name {
@@ -67,25 +92,200 @@
 
     .trip-meta {
       font-size: .75rem;
-      color: #888580;
+      color: var(--muted);
       margin-top: 3px;
     }
 
     .arrow {
       font-size: 1rem;
-      color: #888580;
+      color: var(--muted);
       flex-shrink: 0;
       margin-left: 16px;
     }
+
+    .empty-trips {
+      padding: 24px 0;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+
+    /* ── Kebabs + dropdown menus ── */
+    .page-menu-wrap, .trip-menu-wrap { position: relative; flex-shrink: 0; }
+    .trip-menu-wrap { margin-left: 8px; }
+
+    .page-menu-btn, .trip-menu-btn {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: .95rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .page-menu-btn:hover, .trip-menu-btn:hover { border-color: var(--text); color: var(--text); }
+
+    .page-menu, .trip-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.15);
+      z-index: 20;
+      min-width: 150px;
+      overflow: hidden;
+    }
+
+    .page-menu.open, .trip-menu.open { display: block; }
+
+    .page-menu button, .trip-menu button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 10px 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: .78rem;
+      font-weight: 500;
+      background: none;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .page-menu button:hover, .trip-menu button:hover { background: var(--light); }
+    .trip-menu button.danger { color: #c0392b; }
+
+    /* ── New/edit trip modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(26,25,23,.5);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border-radius: 6px;
+      width: 100%;
+      max-width: 380px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+      box-shadow: 0 12px 48px rgba(0,0,0,.25);
+      position: relative;
+    }
+
+    .modal h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      padding-right: 20px;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 18px;
+      right: 20px;
+      background: none;
+      border: none;
+      font-size: 1.3rem;
+      color: var(--muted);
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal label {
+      display: block;
+      font-size: .62rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 14px;
+      margin-bottom: 5px;
+    }
+
+    .modal input {
+      width: 100%;
+      font-family: 'Inter', sans-serif;
+      font-size: .85rem;
+      padding: 9px 11px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .modal-hint { font-size: .68rem; color: var(--muted); margin-top: 5px; }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .modal-actions button {
+      flex: 1;
+      padding: 10px;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      border-radius: 20px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .modal-actions button.primary {
+      background: var(--text);
+      border-color: var(--text);
+      color: #fff;
+    }
+
+    .modal-actions button:disabled { opacity: .5; cursor: default; }
+
+    .modal-error {
+      font-size: .72rem;
+      color: #c0392b;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .modal-error.show { display: block; }
   </style>
 </head>
 <body>
 <div class="page">
   <header>
     <div class="eyebrow">Phil's</div>
-    <h1>Foodie Notes</h1>
-    <p style="font-size: .85rem; color: #888580; margin-top: 8px;">Places to try</p>
+    <div class="header-row">
+      <h1>Foodie Notes</h1>
+      <div class="page-menu-wrap">
+        <button class="page-menu-btn" title="More" onclick="toggleNewTripMenu(event)">⋮</button>
+        <div class="page-menu" id="new-trip-menu">
+          <button onclick="openTripModal()">+ New foodie note</button>
+        </div>
+      </div>
+    </div>
+    <p style="font-size: .85rem; color: var(--muted); margin-top: 8px;">Places to try</p>
   </header>
+
+  <ul class="trip-list" id="custom-trip-list"></ul>
 
   <ul class="trip-list">
     <li class="trip-item">
@@ -108,5 +308,243 @@
     </li>
   </ul>
 </div>
+
+<div class="modal-overlay" id="trip-modal-overlay">
+  <div class="modal">
+    <button class="modal-close" type="button" onclick="closeTripModal()">&times;</button>
+    <h2 id="trip-modal-title">New foodie note</h2>
+    <form id="trip-form">
+      <label for="trip-name">Name</label>
+      <input type="text" id="trip-name" required placeholder="e.g. Tokyo" />
+      <label for="trip-subtitle">Subtitle</label>
+      <input type="text" id="trip-subtitle" placeholder="e.g. Japan · 2027" />
+      <div id="trip-destination-group">
+        <label for="trip-destination">Destination</label>
+        <input type="text" id="trip-destination" placeholder="e.g. Tokyo, Japan" />
+        <div class="modal-hint">Used to center the map — doesn't need to be exact.</div>
+      </div>
+      <div class="modal-error" id="trip-error"></div>
+      <div class="modal-actions">
+        <button type="button" onclick="closeTripModal()">Cancel</button>
+        <button type="submit" class="primary" id="trip-submit">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const TRIPS_API = '/.netlify/functions/trips';
+let trips = [];
+let openTripMenuSlug = null;
+let editingTripSlug = null;
+
+async function authedFetch(url, options = {}) {
+  const stored = localStorage.getItem('foodiePasscode');
+  const headers = { ...(options.headers || {}) };
+  if (stored) headers['x-foodie-passcode'] = stored;
+  let res = await fetch(url, { ...options, headers });
+  if (res.status === 401) {
+    const code = prompt('Enter passcode to make changes:');
+    if (!code) return res;
+    localStorage.setItem('foodiePasscode', code);
+    res = await fetch(url, { ...options, headers: { ...headers, 'x-foodie-passcode': code } });
+    if (res.status === 401) localStorage.removeItem('foodiePasscode');
+  }
+  return res;
+}
+
+async function geocode(destination) {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(destination)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Geocoding request failed');
+  const results = await res.json();
+  if (!results.length) throw new Error('Destination not found');
+  return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) };
+}
+
+const listEl = document.getElementById('custom-trip-list');
+
+function renderTrips() {
+  listEl.innerHTML = '';
+  const sorted = [...trips].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  sorted.forEach(trip => {
+    const li = document.createElement('li');
+    li.className = 'trip-item';
+    li.innerHTML = `
+      <a href="trip.html?city=${encodeURIComponent(trip.slug)}">
+        <div>
+          <div class="trip-name">${trip.name}</div>
+          <div class="trip-meta">${trip.subtitle || ''}</div>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+      <div class="trip-menu-wrap">
+        <button class="trip-menu-btn" title="More" onclick="toggleTripMenu('${trip.slug}', event)">⋮</button>
+        <div class="trip-menu${openTripMenuSlug === trip.slug ? ' open' : ''}">
+          <button onclick="openTripModal('${trip.slug}', event)">Edit</button>
+          <button class="danger" onclick="deleteTrip('${trip.slug}', event)">Delete</button>
+        </div>
+      </div>`;
+    listEl.appendChild(li);
+  });
+}
+
+function toggleTripMenu(slug, ev) {
+  if (ev) ev.stopPropagation();
+  openTripMenuSlug = openTripMenuSlug === slug ? null : slug;
+  renderTrips();
+}
+
+function toggleNewTripMenu(ev) {
+  if (ev) ev.stopPropagation();
+  document.getElementById('new-trip-menu').classList.toggle('open');
+}
+
+document.addEventListener('click', () => {
+  if (openTripMenuSlug !== null) { openTripMenuSlug = null; renderTrips(); }
+  document.getElementById('new-trip-menu').classList.remove('open');
+});
+
+async function deleteTrip(slug, ev) {
+  if (ev) ev.stopPropagation();
+  const trip = trips.find(t => t.slug === slug);
+  if (!trip) return;
+  if (!confirm(`Delete "${trip.name}"? This removes all its places too.`)) return;
+  try {
+    const res = await authedFetch(`${TRIPS_API}?slug=${encodeURIComponent(slug)}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('delete failed');
+  } catch (e) {
+    console.error('Failed to delete trip', e);
+    alert('Could not delete this trip — check your passcode and try again.');
+    return;
+  }
+  trips = trips.filter(t => t.slug !== slug);
+  renderTrips();
+}
+
+const tripModalOverlay = document.getElementById('trip-modal-overlay');
+const tripForm = document.getElementById('trip-form');
+const tripModalTitle = document.getElementById('trip-modal-title');
+const tripNameInput = document.getElementById('trip-name');
+const tripSubtitleInput = document.getElementById('trip-subtitle');
+const tripDestinationInput = document.getElementById('trip-destination');
+const tripDestinationGroup = document.getElementById('trip-destination-group');
+const tripError = document.getElementById('trip-error');
+const tripSubmitBtn = document.getElementById('trip-submit');
+
+function openTripModal(slug, ev) {
+  if (ev) ev.stopPropagation();
+  openTripMenuSlug = null;
+  renderTrips();
+  tripForm.reset();
+  tripError.classList.remove('show');
+  if (slug) {
+    const trip = trips.find(t => t.slug === slug);
+    if (!trip) return;
+    editingTripSlug = slug;
+    tripNameInput.value = trip.name;
+    tripSubtitleInput.value = trip.subtitle || '';
+    tripDestinationGroup.style.display = 'none';
+    tripModalTitle.textContent = 'Edit foodie note';
+    tripSubmitBtn.textContent = 'Save changes';
+  } else {
+    editingTripSlug = null;
+    tripDestinationGroup.style.display = '';
+    tripModalTitle.textContent = 'New foodie note';
+    tripSubmitBtn.textContent = 'Create';
+  }
+  tripModalOverlay.classList.add('open');
+}
+
+function closeTripModal() {
+  tripModalOverlay.classList.remove('open');
+}
+
+tripModalOverlay.addEventListener('click', (e) => {
+  if (e.target === tripModalOverlay) closeTripModal();
+});
+
+tripForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  tripError.classList.remove('show');
+  const name = tripNameInput.value.trim();
+  const subtitle = tripSubtitleInput.value.trim();
+  if (!name) return;
+
+  if (editingTripSlug) {
+    tripSubmitBtn.disabled = true;
+    tripSubmitBtn.textContent = 'Saving…';
+    try {
+      const res = await authedFetch(TRIPS_API, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: editingTripSlug, name, subtitle }),
+      });
+      if (res.status === 401) throw new Error('unauthorized');
+      if (!res.ok) throw new Error('save failed');
+      const trip = trips.find(t => t.slug === editingTripSlug);
+      if (trip) { trip.name = name; trip.subtitle = subtitle; }
+      renderTrips();
+      closeTripModal();
+    } catch (err) {
+      tripError.textContent = err.message === 'unauthorized'
+        ? 'Wrong passcode — try again.'
+        : 'Something went wrong saving — try again.';
+      tripError.classList.add('show');
+    } finally {
+      tripSubmitBtn.disabled = false;
+      tripSubmitBtn.textContent = 'Save changes';
+    }
+    return;
+  }
+
+  const destination = tripDestinationInput.value.trim();
+  if (!destination) return;
+
+  tripSubmitBtn.disabled = true;
+  tripSubmitBtn.textContent = 'Locating…';
+  let coords;
+  try {
+    coords = await geocode(destination);
+  } catch (err) {
+    tripError.textContent = "Couldn't find that destination — try adding more detail.";
+    tripError.classList.add('show');
+    tripSubmitBtn.disabled = false;
+    tripSubmitBtn.textContent = 'Create';
+    return;
+  }
+
+  tripSubmitBtn.textContent = 'Creating…';
+  try {
+    const res = await authedFetch(TRIPS_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, subtitle, lat: coords.lat, lng: coords.lng, zoom: 12 }),
+    });
+    if (res.status === 401) throw new Error('unauthorized');
+    if (!res.ok) throw new Error('create failed');
+    const trip = await res.json();
+    window.location.href = `trip.html?city=${encodeURIComponent(trip.slug)}`;
+  } catch (err) {
+    tripError.textContent = err.message === 'unauthorized'
+      ? 'Wrong passcode — try again.'
+      : 'Something went wrong creating this trip — try again.';
+    tripError.classList.add('show');
+    tripSubmitBtn.disabled = false;
+    tripSubmitBtn.textContent = 'Create';
+  }
+});
+
+async function init() {
+  try {
+    const res = await fetch(TRIPS_API);
+    if (res.ok) trips = await res.json();
+  } catch (e) {
+    console.error('Failed to load trips', e);
+  }
+  renderTrips();
+}
+init();
+</script>
 </body>
 </html>

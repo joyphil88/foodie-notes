@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hawaii 2026</title>
+  <title>Foodie Notes</title>
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -151,6 +151,14 @@
     #place-list::-webkit-scrollbar-track { background: transparent; }
     #place-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
+    .empty-list {
+      padding: 40px 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.5;
+    }
+
     .place-item {
       display: flex;
       align-items: flex-start;
@@ -174,8 +182,6 @@
       background: var(--text);
     }
 
-    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
-
     .place-name { font-size: .88rem; font-weight: 500; line-height: 1.3; }
     .place-note { font-size: .72rem; color: var(--muted); margin-top: 2px; line-height: 1.4; font-style: italic; }
     .place-meta { font-size: .68rem; color: var(--muted); margin-top: 3px; }
@@ -192,7 +198,6 @@
     }
 
     .place-maps:hover { color: var(--text); }
-
 
     /* ── Popup ── */
     .leaflet-popup-content-wrapper {
@@ -600,8 +605,8 @@
   <aside id="sidebar">
     <div class="sidebar-header">
       <a class="back-link" href="index.html">← Foodie Notes</a>
-      <h1>Hawaii 2026<span>Oahu</span></h1>
-      <div id="count-label">Loading…</div>
+      <h1 id="trip-title">Loading…<span id="trip-subtitle"></span></h1>
+      <div id="count-label"></div>
       <button class="add-place-btn" onclick="openAddModal()">+ Add place</button>
     </div>
     <div id="filters"></div>
@@ -635,7 +640,7 @@
       <label for="add-cat">Category</label>
       <select id="add-cat"></select>
       <label for="add-addr">Address</label>
-      <input type="text" id="add-addr" required placeholder="e.g. Haleiwa, HI" />
+      <input type="text" id="add-addr" required placeholder="e.g. 123 Main St, City" />
       <label for="add-note">Note</label>
       <textarea id="add-note" placeholder="One line — what to order, why it's worth it"></textarea>
       <div class="modal-error" id="add-error"></div>
@@ -650,67 +655,25 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const CATEGORIES = {
-  Seafood:  { color: '#16a085', label: 'Seafood' },
-  Poke:     { color: '#e67e22', label: 'Poke' },
-  Bakery:   { color: '#8e5e3d', label: 'Bakery' },
-  Local:    { color: '#2980b9', label: 'Local' },
-  Dessert:  { color: '#c0696e', label: 'Dessert' },
-  Korean:   { color: '#c0392b', label: 'Korean' },
-  Activity: { color: '#27ae60', label: 'Activity' },
-  Hotel:    { color: '#1a1917', label: 'Hotel' },
+  Food:  { color: '#c8a96e', label: 'Food' },
+  Hotel: { color: '#1a1917', label: 'Hotel' },
 };
 
-const PLACES = [
-  // Hotels
-  { name: 'Aulani',                 cat: 'Hotel',    addr: '92-1185 Aliʻinui Dr, Ko Olina',      lat: 21.3366, lng: -158.1237, note: "Where you're staying." },
-  { name: 'Ritz-Carlton Turtle Bay', cat: 'Hotel',    addr: '57-091 Kamehameha Hwy, Kahuku',      lat: 21.6972, lng: -157.9970, note: "Where you're staying." },
-  // Honolulu / Aiea
-  { name: 'Da Seafood Cartel',      cat: 'Seafood',  addr: 'Honolulu, HI',                      lat: 21.3135, lng: -157.8557, note: 'Fresh poke bowls and seafood plates — a local favorite for quality fish.' },
-  { name: 'Asahi Grill',            cat: 'Local',    addr: '633 Dillingham Blvd, Honolulu',      lat: 21.3244, lng: -157.8706, note: 'No-frills island diner — loco moco and plate lunches done right, open late.' },
-  // North Shore — Haleiwa & Waialua
-  { name: 'Haleiwa No. 7',          cat: 'Seafood',  addr: 'Haleiwa, HI',                        lat: 21.5926, lng: -158.1053, note: 'North Shore seafood spot with fresh catches and a laid-back beach-town vibe.' },
-  { name: 'Morning Catch',          cat: 'Seafood',  addr: 'Haleiwa, HI',                        lat: 21.5935, lng: -158.1062, note: 'Casual breakfast and lunch with fresh-caught fish — arrive early, it goes fast.' },
-  { name: "Kono's",                 cat: 'Local',    addr: '66-250 Kamehameha Hwy, Haleiwa',     lat: 21.5953, lng: -158.1095, note: 'Legendary breakfast burritos stuffed with kalua pork or shrimp — the North Shore staple.' },
-  { name: 'Down to Earth',          cat: 'Local',    addr: '66-197 Kamehameha Hwy, Haleiwa',     lat: 21.5941, lng: -158.1082, note: 'Organic market and hot bar — great pit stop for healthy bites and local produce.' },
-  { name: 'Makua Banana Bread',     cat: 'Bakery',   addr: 'Farrington Hwy, North Shore',        lat: 21.6370, lng: -158.0620, note: 'Roadside banana bread stand — warm loaves fresh out of the oven, cash only.' },
-  { name: 'Paalaa Kai Bakery',      cat: 'Bakery',   addr: '67-106 Kealohanui St, Waialua',      lat: 21.5728, lng: -158.1311, note: 'Old-school bakery famous for puffies — pillowy fried malasada-style donuts.' },
-  { name: 'Poke for the People',    cat: 'Poke',     addr: 'Haleiwa, HI',                        lat: 21.5922, lng: -158.1045, note: 'No-frills poke counter with fresh fish and creative toppings — big portions.' },
-  { name: "Haleiwa Joe's",          cat: 'Seafood',  addr: '66-011 Kamehameha Hwy, Haleiwa',     lat: 21.5943, lng: -158.1057, note: 'Waterfront seafood and steak spot right on the harbor — go for sunset and the fresh catch.' },
-  // Kahuku & Sunset Beach
-  { name: 'Kahuku Superette',       cat: 'Poke',     addr: '56-505 Kamehameha Hwy, Kahuku',      lat: 21.6791, lng: -157.9514, note: 'Unassuming local market with some of the best poke on the island — get the shoyu ahi.' },
-  { name: "Ted's Bakery",           cat: 'Bakery',   addr: '59-024 Kamehameha Hwy, Sunset Beach', lat: 21.6647, lng: -158.0486, note: 'North Shore institution — chocolate haupia cream pie and plate lunches.' },
-  { name: 'Da Bald Guy',            cat: 'Seafood',  addr: 'Kahuku, HI',                         lat: 21.6783, lng: -157.9560, note: 'Food truck serving Kahuku shrimp in garlic butter or spicy — a North Shore rite.' },
-  { name: 'Famous Kahuku Shrimp Truck', cat: 'Seafood', addr: '56-580 Kamehameha Hwy, Kahuku',  lat: 21.6772, lng: -157.9491, note: 'The original Kahuku shrimp truck — classic garlic butter shrimp plate, always a line.' },
-  { name: "Romy's Kahuku Prawns & Shrimp", cat: 'Seafood', addr: '56-781 Kamehameha Hwy, Kahuku', lat: 21.6798, lng: -157.9500, note: 'Shrimp hut with prawns raised on-site — try the lemon butter or hot & spicy.' },
-  { name: "Ry's Poke Shack",        cat: 'Poke',     addr: 'Kahuku, HI',                         lat: 21.6788, lng: -157.9518, note: 'Small-batch poke shack with a rotating menu of fresh, inventive flavors.' },
-  { name: 'Seven Brothers',         cat: 'Local',    addr: '56-565 Kamehameha Hwy, Kahuku',      lat: 21.6768, lng: -157.9483, note: 'Local burger joint in an old sugar mill building — known for their smash burgers.' },
-  { name: 'Kahuku Farms',           cat: 'Local',    addr: '56-800 Kamehameha Hwy, Kahuku',       lat: 21.6803, lng: -157.9536, note: 'Working farm with a café — try the açaí bowl topped with their own tropical fruits.' },
-  { name: 'Badabingsu',             cat: 'Dessert',  addr: 'Kahuku, HI',                         lat: 21.6810, lng: -157.9527, note: 'Korean bingsu shaved ice in creative flavors — the perfect North Shore cool-down.' },
-  { name: 'Kalbi on Fire',          cat: 'Korean',   addr: 'Kahuku, HI',                         lat: 21.6795, lng: -157.9545, note: 'Food truck with Korean BBQ kalbi and loco moco mashups — bold flavors, big plates.' },
-  // Activity
-  { name: 'Gunstock Ranch',         cat: 'Activity', addr: '56-250 Kamehameha Hwy, Laie',        lat: 21.6484, lng: -157.9118, note: 'Working cattle ranch in the Ko\'olau foothills — horseback rides and mountain views.' },
-  { name: 'Three Tables Beach',     cat: 'Activity', addr: '59-337 Kamehameha Hwy, Haleiwa',     lat: 21.6388, lng: -158.0578, note: 'Calm-water snorkeling spot named for its flat reef tables — great for beginners in summer months.' },
-];
+const PLACES = [];
 
 function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
-PLACES.forEach(p => { p.id = slugify(p.name); p.custom = false; p.tried = false; });
 
-const CITY = 'hawaii2026';
-const CITY_LABEL = 'Oahu, HI';
+const CITY = new URLSearchParams(location.search).get('city') || '';
+let CITY_LABEL = '';
 const API = '/.netlify/functions/places';
 const CATEGORIES_API = '/.netlify/functions/categories';
+const TRIPS_API = '/.netlify/functions/trips';
 const CATEGORY_PALETTE = ['#c0392b', '#8e44ad', '#16a085', '#e67e22', '#2980b9', '#27ae60', '#7f8c8d', '#c0960c', '#2c3e50', '#8e5e3d'];
 
 // ── Map ──────────────────────────────────────────────────────────────
-const map = L.map('map', { zoomControl: false }).setView([21.630, -158.020], 12);
-L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  attribution: '© OpenStreetMap contributors © CARTO',
-  maxZoom: 19
-}).addTo(map);
+let map;
 
 function makeIcon(selected, tried, isHotel) {
   const base = selected ? 26 : 20;
@@ -967,9 +930,14 @@ function setFilter(key) {
 function buildList() {
   listEl.innerHTML = '';
   const visible = PLACES.filter(p => activeFilter === 'All' || p.cat === activeFilter);
-  countEl.textContent = activeFilter === 'All'
-    ? `${PLACES.length} places to try`
-    : `${visible.length} of ${PLACES.length} places`;
+  countEl.textContent = PLACES.length === 0
+    ? 'No places yet'
+    : (activeFilter === 'All' ? `${PLACES.length} places to try` : `${visible.length} of ${PLACES.length} places`);
+
+  if (PLACES.length === 0) {
+    listEl.innerHTML = '<div class="empty-list">Nothing here yet — tap "+ Add place" to start building this trip.</div>';
+    return;
+  }
 
   visible.forEach(p => {
     const cat = CATEGORIES[p.cat];
@@ -982,7 +950,7 @@ function buildList() {
       <div class="place-item-body">
         <div class="place-name">${p.name}</div>
         <div class="place-note">${p.note}</div>
-        <div class="place-meta">${cat.label} &nbsp;·&nbsp; <a class="place-maps" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${p.addr} →</a></div>
+        <div class="place-meta">${cat ? cat.label : p.cat} &nbsp;·&nbsp; <a class="place-maps" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${p.addr} →</a></div>
       </div>
       <div class="item-menu-wrap">
         <button class="item-menu-btn" title="More" onclick="toggleItemMenu('${p.id}', event)">⋮</button>
@@ -1091,8 +1059,8 @@ async function deletePlace(id, ev) {
 }
 
 async function geocodeAddress(addr) {
-  const query = `${addr}, ${CITY_LABEL}`;
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(query)}`;
+  const query = CITY_LABEL ? `${addr}, ${CITY_LABEL}` : addr;
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('Geocoding request failed');
   const results = await res.json();
@@ -1318,6 +1286,41 @@ function toggleMapFilters() {
 }
 
 async function init() {
+  if (!CITY) {
+    document.getElementById('trip-title').textContent = 'Trip not found';
+    listEl.innerHTML = '<div class="empty-list">No trip was specified. Go back and pick one from Foodie Notes.</div>';
+    return;
+  }
+
+  let trip;
+  try {
+    const res = await fetch(TRIPS_API);
+    const trips = await res.json();
+    trip = trips.find(t => t.slug === CITY);
+  } catch (e) {
+    console.error('Failed to load trip', e);
+  }
+
+  if (!trip) {
+    document.getElementById('trip-title').textContent = 'Trip not found';
+    listEl.innerHTML = '<div class="empty-list">This trip doesn\'t exist or was deleted.</div>';
+    return;
+  }
+
+  document.title = trip.name + ' — Foodie Notes';
+  document.getElementById('trip-title').textContent = trip.name;
+  const subtitleEl = document.createElement('span');
+  subtitleEl.textContent = trip.subtitle || '';
+  document.getElementById('trip-title').appendChild(subtitleEl);
+  CITY_LABEL = trip.name;
+
+  map = L.map('map', { zoomControl: false }).setView([trip.lat, trip.lng], trip.zoom || 12);
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap contributors © CARTO',
+    maxZoom: 19
+  }).addTo(map);
+
   await loadRemoteState();
   PLACES.forEach(addMarkerFor);
   populateCategorySelect();

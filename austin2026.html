@@ -122,6 +122,37 @@
     .chip:hover { border-color: var(--text); color: var(--text); }
     .chip.active { background: var(--text); border-color: var(--text); color: #fff; }
 
+    .chip.editing { display: inline-flex; align-items: center; gap: 6px; }
+    .chip-delete { font-size: .8rem; line-height: 1; opacity: .6; }
+    .chip-delete:hover { opacity: 1; color: #c0392b; }
+    .chip-add { border-style: dashed; }
+    .chip-rename-input {
+      font-family: 'Inter', sans-serif;
+      font-size: .6rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      width: 90px;
+      outline: none;
+    }
+
+    .chip-kebab {
+      font-size: .7rem;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .chip-kebab:hover { border-color: var(--text); color: var(--text); }
+    .chip-kebab.active { background: var(--text); border-color: var(--text); color: #fff; }
+
     /* ── List ── */
     #place-list { flex: 1; overflow-y: auto; padding: 4px 0; }
 
@@ -343,6 +374,233 @@
       .place-meta { font-size: .78rem; }
       .place-item { padding: 15px 18px; }
     }
+
+    /* ── Add place button ── */
+    .add-place-btn {
+      margin-top: 12px;
+      font-size: .68rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      padding: 7px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--text);
+      background: var(--text);
+      color: #fff;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+
+    .add-place-btn:hover { opacity: .8; }
+
+    /* ── Tried toggle + delete on list items ── */
+    .place-item-body { flex: 1; min-width: 0; }
+
+    .tried-toggle {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      margin-top: 2px;
+      padding: 0;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: transparent;
+      font-size: .62rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .tried-toggle:hover { border-color: var(--text); }
+    .tried-toggle.tried { background: #6b8e5a; border-color: #6b8e5a; color: #fff; }
+    .tried-toggle-spacer { flex-shrink: 0; width: 20px; }
+
+    .place-item.tried .place-name { color: var(--muted); }
+
+    .item-menu-wrap { position: relative; flex-shrink: 0; }
+
+    .item-menu-btn {
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: .95rem;
+      line-height: 1;
+      cursor: pointer;
+      opacity: .5;
+      transition: opacity .15s, color .15s;
+    }
+
+    .item-menu-btn:hover { opacity: 1; color: var(--text); }
+
+    .item-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.15);
+      z-index: 20;
+      min-width: 110px;
+      overflow: hidden;
+    }
+
+    .item-menu.open { display: block; }
+
+    .item-menu button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 9px 13px;
+      font-family: 'Inter', sans-serif;
+      font-size: .72rem;
+      font-weight: 600;
+      background: none;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .item-menu button:hover { background: var(--light); }
+    .item-menu button.danger { color: #c0392b; }
+
+    /* ── Popup actions ── */
+    .popup-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .popup-action {
+      font-size: .64rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .popup-action:hover { color: var(--text); }
+    .popup-action.danger:hover { color: #c0392b; }
+
+    /* ── Add place modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(26,25,23,.5);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border-radius: 6px;
+      width: 100%;
+      max-width: 380px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+      box-shadow: 0 12px 48px rgba(0,0,0,.25);
+      position: relative;
+    }
+
+    .modal h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      padding-right: 20px;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 18px;
+      right: 20px;
+      background: none;
+      border: none;
+      font-size: 1.3rem;
+      color: var(--muted);
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal label {
+      display: block;
+      font-size: .62rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 14px;
+      margin-bottom: 5px;
+    }
+
+    .modal input, .modal select, .modal textarea {
+      width: 100%;
+      font-family: 'Inter', sans-serif;
+      font-size: .85rem;
+      padding: 9px 11px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .modal textarea { resize: vertical; min-height: 56px; }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .modal-actions button {
+      flex: 1;
+      padding: 10px;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      border-radius: 20px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .modal-actions button.primary {
+      background: var(--text);
+      border-color: var(--text);
+      color: #fff;
+    }
+
+    .modal-actions button:disabled { opacity: .5; cursor: default; }
+
+    .modal-error {
+      font-size: .72rem;
+      color: #c0392b;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .modal-error.show { display: block; }
   </style>
 </head>
 <body>
@@ -352,6 +610,7 @@
       <a class="back-link" href="index.html">← Foodie Notes</a>
       <h1>Austin<span>Texas · 2026</span></h1>
       <div id="count-label">Loading…</div>
+      <button class="add-place-btn" onclick="openAddModal()">+ Add place</button>
     </div>
     <div id="filters"></div>
     <div id="place-list"></div>
@@ -374,6 +633,28 @@
   <span id="toggle-label">Map</span>
 </button>
 
+<div class="modal-overlay" id="add-modal-overlay">
+  <div class="modal">
+    <button class="modal-close" type="button" onclick="closeAddModal()">&times;</button>
+    <h2 id="add-modal-title">Add a place</h2>
+    <form id="add-form">
+      <label for="add-name">Name</label>
+      <input type="text" id="add-name" required />
+      <label for="add-cat">Category</label>
+      <select id="add-cat"></select>
+      <label for="add-addr">Address</label>
+      <input type="text" id="add-addr" required placeholder="e.g. 3220 Manor Rd" />
+      <label for="add-note">Note</label>
+      <textarea id="add-note" placeholder="One line — what to order, why it's worth it"></textarea>
+      <div class="modal-error" id="add-error"></div>
+      <div class="modal-actions">
+        <button type="button" onclick="closeAddModal()">Cancel</button>
+        <button type="submit" class="primary" id="add-submit">Add place</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const CATEGORIES = {
@@ -386,16 +667,11 @@ const CATEGORIES = {
   TexMex:    { color: '#e67e22', label: 'Tex-Mex' },
   Bakery:    { color: '#7f8c8d', label: 'Bakery / Coffee' },
   Bars:      { color: '#2c3e50', label: 'Bars' },
-};
-
-const HOTEL = {
-  name: 'Thompson Austin',
-  addr: '506 San Jacinto Blvd',
-  lat: 30.2659,
-  lng: -97.7404,
+  Hotel:     { color: '#1a1917', label: 'Hotel' },
 };
 
 const PLACES = [
+  { name: 'Thompson Austin',           cat: 'Hotel',     addr: '506 San Jacinto Blvd',   lat: 30.2659, lng: -97.7404, note: "Where you're staying." },
   { name: 'Parish BBQ',                cat: 'BBQ',       addr: '3220 Manor Rd',          lat: 30.2710, lng: -97.7043, note: 'East Austin stalwart — brisket sandwich and the smoked jalapeño sausage.' },
   { name: 'Mum Foods',                 cat: 'BBQ',       addr: '5811 Manor Rd',          lat: 30.2917, lng: -97.6826, note: 'Nigerian-spiced BBQ — suya-rubbed ribs are unlike anywhere else in Austin.' },
   { name: 'Fiasco BBQ',                cat: 'BBQ',       addr: '641 Allen St',           lat: 30.2608, lng: -97.7317, note: 'No-frills neighborhood smoke spot — brisket by the pound, cash only.' },
@@ -415,6 +691,17 @@ const PLACES = [
   { name: 'Small Victory',             cat: 'Bars',      addr: '108 E 7th St',           lat: 30.2676, lng: -97.7404, note: 'Intimate craft cocktail bar downtown — one of Austin\'s best kept secrets.' },
 ];
 
+function slugify(s) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+PLACES.forEach(p => { p.id = slugify(p.name); p.custom = false; p.tried = false; });
+
+const CITY = 'austin2026';
+const CITY_LABEL = 'Austin, TX';
+const API = '/.netlify/functions/places';
+const CATEGORIES_API = '/.netlify/functions/categories';
+const CATEGORY_PALETTE = ['#c0392b', '#8e44ad', '#16a085', '#e67e22', '#2980b9', '#27ae60', '#7f8c8d', '#c0960c', '#2c3e50', '#8e5e3d'];
+
 // ── Map ──────────────────────────────────────────────────────────────
 const map = L.map('map', { zoomControl: false }).setView([30.267, -97.743], 13);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -424,9 +711,11 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
   maxZoom: 19
 }).addTo(map);
 
-function makeIcon(color, selected) {
+function makeIcon(selected, tried, isHotel) {
   const base = selected ? 26 : 20;
-  const pinColor = selected ? '#1a1917' : '#c8a96e';
+  let pinColor = isHotel ? '#1a1917' : '#c8a96e';
+  if (tried) pinColor = '#6b8e5a';
+  if (selected) pinColor = '#1a1917';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="${base}" height="${base * 1.5}">
     <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24C24 5.373 18.627 0 12 0z" fill="${pinColor}"/>
     <circle cx="12" cy="12" r="4.5" fill="rgba(255,255,255,.9)"/>
@@ -444,64 +733,91 @@ function mapsLink(name, addr) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' ' + addr + ' Austin TX')}`;
 }
 
-// ── Hotel marker ─────────────────────────────────────────────────────
-const hotelIcon = L.divIcon({
-  html: `<div style="
-    background:#1a1917;
-    color:#fff;
-    border-radius:6px;
-    padding:4px 7px;
-    font-family:'Inter',sans-serif;
-    font-size:11px;
-    font-weight:600;
-    white-space:nowrap;
-    box-shadow:0 2px 8px rgba(0,0,0,.25);
-    display:flex;
-    align-items:center;
-    gap:4px;
-  ">🏨 Thompson</div>`,
-  className: '',
-  iconAnchor: [55, 28],
-  popupAnchor: [0, -30],
-});
-
-L.marker([HOTEL.lat, HOTEL.lng], { icon: hotelIcon, zIndexOffset: 1000 })
-  .addTo(map)
-  .bindPopup(`<div class="popup-body">
-    <div class="popup-cat">Your Hotel</div>
-    <div class="popup-name">${HOTEL.name}</div>
-    <div class="popup-addr">${HOTEL.addr}, Austin TX</div>
-    <a class="popup-link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(HOTEL.name + ' Austin TX')}" target="_blank" rel="noopener">Open in Maps →</a>
-  </div>`, { maxWidth: 290 });
-
 let activeFilter = 'All';
-let selectedIdx = null;
-const markers = [];
+let selectedId = null;
+let openMenuId = null;
+const markers = new Map();
 
-PLACES.forEach((p, i) => {
-  const marker = L.marker([p.lat, p.lng], { icon: makeIcon(CATEGORIES[p.cat].color, false) })
-    .addTo(map)
-    .bindPopup(() => `<div class="popup-body">
+function popupHtml(p) {
+  return `<div class="popup-body">
       <div class="popup-cat">${CATEGORIES[p.cat].label}</div>
       <div class="popup-name">${p.name}</div>
       <div class="popup-note">${p.note}</div>
       <a class="popup-link" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener">${p.addr}, Austin TX →</a>
-    </div>`, { maxWidth: 290 });
-  marker.on('click', () => { selectPlace(i, false); });
+      <div class="popup-actions">
+        ${p.cat === 'Hotel' ? '' : `<button class="popup-action" onclick="toggleTried('${p.id}', event)">${p.tried ? '✓ Tried' : 'Mark tried'}</button>`}
+        <button class="popup-action" onclick="openEditModal('${p.id}', event)">Edit</button>
+        <button class="popup-action danger" onclick="deletePlace('${p.id}', event)">Remove</button>
+      </div>
+    </div>`;
+}
+
+function refreshMarkerIcon(id) {
+  const p = PLACES.find(pp => pp.id === id);
+  const marker = markers.get(id);
+  if (!p || !marker) return;
+  marker.setIcon(makeIcon(selectedId === id, p.tried, p.cat === 'Hotel'));
+  if (marker.isPopupOpen()) marker.setPopupContent(popupHtml(p));
+}
+
+function addMarkerFor(p) {
+  const marker = L.marker([p.lat, p.lng], {
+    icon: makeIcon(false, p.tried, p.cat === 'Hotel'),
+    zIndexOffset: p.cat === 'Hotel' ? 1000 : 0,
+  })
+    .addTo(map)
+    .bindPopup(() => popupHtml(p), { maxWidth: 290 });
+  marker.on('click', () => { selectPlace(p.id, false); });
   marker.on('popupclose', () => {
-    if (selectedIdx === i) {
-      markers[i].setIcon(makeIcon(CATEGORIES[PLACES[i].cat].color, false));
-      selectedIdx = null;
+    if (selectedId === p.id) {
+      selectedId = null;
+      refreshMarkerIcon(p.id);
       buildList();
     }
   });
-  markers.push(marker);
-});
+  markers.set(p.id, marker);
+  return marker;
+}
+
+async function loadRemoteState() {
+  try {
+    const res = await fetch(`${API}?city=${CITY}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const deletedIds = new Set(data.deletedIds || []);
+    const triedIds = new Set(data.triedIds || []);
+    const edits = data.edits || {};
+    for (let i = PLACES.length - 1; i >= 0; i--) {
+      if (deletedIds.has(PLACES[i].id)) PLACES.splice(i, 1);
+    }
+    PLACES.forEach(p => {
+      p.tried = triedIds.has(p.id);
+      if (edits[p.id]) Object.assign(p, edits[p.id]);
+    });
+    (data.custom || []).forEach(p => {
+      if (edits[p.id]) Object.assign(p, edits[p.id]);
+      p.custom = true;
+      p.tried = triedIds.has(p.id);
+      PLACES.push(p);
+    });
+
+    const categories = data.categories || {};
+    (categories.deletedKeys || []).forEach(key => { delete CATEGORIES[key]; });
+    (categories.custom || []).forEach(c => { CATEGORIES[c.key] = { color: c.color, label: c.label }; });
+    Object.entries(categories.labels || {}).forEach(([key, label]) => {
+      if (CATEGORIES[key]) CATEGORIES[key].label = label;
+    });
+  } catch (e) {
+    console.error('Failed to load saved places', e);
+  }
+}
 
 // ── Filters ──────────────────────────────────────────────────────────
 const filtersEl = document.getElementById('filters');
 const listEl = document.getElementById('place-list');
 const countEl = document.getElementById('count-label');
+
+let categoriesEditMode = false;
 
 function buildFilters() {
   filtersEl.innerHTML = '';
@@ -513,16 +829,135 @@ function buildFilters() {
 
   Object.entries(CATEGORIES).forEach(([key, cat]) => {
     const chip = document.createElement('button');
-    chip.className = 'chip' + (activeFilter === key ? ' active' : '');
-    chip.textContent = cat.label;
-    chip.onclick = () => setFilter(activeFilter === key ? 'All' : key);
+    chip.className = 'chip' + (activeFilter === key ? ' active' : '') + (categoriesEditMode ? ' editing' : '');
+    if (categoriesEditMode) {
+      chip.innerHTML = `<span class="chip-label">${cat.label}</span><span class="chip-delete" title="Delete category">×</span>`;
+      chip.onclick = (e) => {
+        if (e.target.classList.contains('chip-delete')) { deleteCategory(key); return; }
+        startRenameCategory(chip, key);
+      };
+    } else {
+      chip.textContent = cat.label;
+      chip.onclick = () => setFilter(activeFilter === key ? 'All' : key);
+    }
     filtersEl.appendChild(chip);
   });
+
+  if (categoriesEditMode) {
+    const addChip = document.createElement('button');
+    addChip.className = 'chip chip-add';
+    addChip.textContent = '+ Add category';
+    addChip.onclick = async () => {
+      const label = prompt('New category name:');
+      if (!label || !label.trim()) return;
+      await createCategory(label);
+      buildFilters();
+      buildMapFilterChips();
+      populateCategorySelect();
+    };
+    filtersEl.appendChild(addChip);
+  }
+
+  const editToggle = document.createElement('button');
+  editToggle.className = 'chip-kebab' + (categoriesEditMode ? ' active' : '');
+  editToggle.textContent = categoriesEditMode ? 'Done' : '⋮';
+  editToggle.title = categoriesEditMode ? 'Done editing categories' : 'Edit categories';
+  editToggle.onclick = () => { categoriesEditMode = !categoriesEditMode; buildFilters(); };
+  filtersEl.appendChild(editToggle);
+}
+
+function startRenameCategory(chip, key) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'chip-rename-input';
+  input.value = CATEGORIES[key].label;
+  chip.innerHTML = '';
+  chip.appendChild(input);
+  input.focus();
+  input.select();
+  let committed = false;
+  const commit = () => {
+    if (committed) return;
+    committed = true;
+    renameCategory(key, input.value);
+  };
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { committed = true; buildFilters(); }
+  });
+  input.addEventListener('blur', commit);
+  input.addEventListener('click', (e) => e.stopPropagation());
+}
+
+async function createCategory(label) {
+  const trimmed = label.trim();
+  if (!trimmed) return null;
+  let key = slugify(trimmed);
+  let n = 2;
+  while (CATEGORIES[key]) { key = `${slugify(trimmed)}-${n++}`; }
+  const color = CATEGORY_PALETTE[Object.keys(CATEGORIES).length % CATEGORY_PALETTE.length];
+  try {
+    const res = await authedFetch(CATEGORIES_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ city: CITY, key, label: trimmed, color }),
+    });
+    if (!res.ok) throw new Error('save failed');
+  } catch (e) {
+    console.error('Failed to save category', e);
+    alert('Could not save the new category — check your passcode and try again.');
+    return null;
+  }
+  CATEGORIES[key] = { color, label: trimmed };
+  return key;
+}
+
+async function deleteCategory(key) {
+  if (PLACES.some(p => p.cat === key)) {
+    alert(`Can't delete "${CATEGORIES[key].label}" — some places still use it. Move or remove those first.`);
+    return;
+  }
+  if (!confirm(`Delete category "${CATEGORIES[key].label}"?`)) return;
+  try {
+    const res = await authedFetch(`${CATEGORIES_API}?city=${CITY}&key=${encodeURIComponent(key)}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('delete failed');
+  } catch (e) {
+    console.error('Failed to delete category', e);
+    alert('Could not delete this category — check your passcode and try again.');
+    return;
+  }
+  delete CATEGORIES[key];
+  if (activeFilter === key) activeFilter = 'All';
+  buildFilters();
+  buildMapFilterChips();
+  populateCategorySelect();
+}
+
+async function renameCategory(key, newLabel) {
+  const trimmed = newLabel.trim();
+  if (!trimmed || trimmed === CATEGORIES[key].label) { buildFilters(); return; }
+  try {
+    const res = await authedFetch(CATEGORIES_API, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ city: CITY, key, label: trimmed }),
+    });
+    if (!res.ok) throw new Error('rename failed');
+  } catch (e) {
+    console.error('Failed to rename category', e);
+    alert('Could not rename this category — check your passcode and try again.');
+    buildFilters();
+    return;
+  }
+  CATEGORIES[key].label = trimmed;
+  buildFilters();
+  buildMapFilterChips();
+  populateCategorySelect();
 }
 
 function setFilter(key) {
   activeFilter = key;
-  selectedIdx = null;
+  selectedId = null;
   buildFilters();
   buildList();
   updateMarkers();
@@ -536,44 +971,295 @@ function buildList() {
     : `${visible.length} of ${PLACES.length} places`;
 
   visible.forEach(p => {
-    const i = PLACES.indexOf(p);
     const cat = CATEGORIES[p.cat];
+    const isHotel = p.cat === 'Hotel';
     const item = document.createElement('div');
-    item.className = 'place-item' + (selectedIdx === i ? ' selected' : '');
-    item.dataset.idx = i;
+    item.className = 'place-item' + (selectedId === p.id ? ' selected' : '') + (p.tried ? ' tried' : '');
+    item.dataset.id = p.id;
     item.innerHTML = `
-      <div>
+      ${isHotel ? '<span class="tried-toggle-spacer"></span>' : `<button class="tried-toggle${p.tried ? ' tried' : ''}" title="${p.tried ? 'Mark as not tried' : 'Mark as tried'}" onclick="toggleTried('${p.id}', event)">✓</button>`}
+      <div class="place-item-body">
         <div class="place-name">${p.name}</div>
         <div class="place-note">${p.note}</div>
         <div class="place-meta">${cat.label} &nbsp;·&nbsp; <a class="place-maps" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${p.addr} →</a></div>
+      </div>
+      <div class="item-menu-wrap">
+        <button class="item-menu-btn" title="More" onclick="toggleItemMenu('${p.id}', event)">⋮</button>
+        <div class="item-menu${openMenuId === p.id ? ' open' : ''}">
+          <button onclick="openEditModal('${p.id}', event)">Edit</button>
+          <button class="danger" onclick="deletePlace('${p.id}', event)">Delete</button>
+        </div>
       </div>`;
-    item.onclick = () => selectPlace(i, true);
+    item.onclick = () => selectPlace(p.id, true);
     listEl.appendChild(item);
   });
 }
 
-function selectPlace(i, pan) {
-  if (selectedIdx !== null) {
-    markers[selectedIdx].setIcon(makeIcon(CATEGORIES[PLACES[selectedIdx].cat].color, false));
-  }
-  selectedIdx = i;
-  markers[i].setIcon(makeIcon(CATEGORIES[PLACES[i].cat].color, true));
+function toggleItemMenu(id, ev) {
+  if (ev) ev.stopPropagation();
+  openMenuId = openMenuId === id ? null : id;
   buildList();
-  const el = listEl.querySelector(`[data-idx="${i}"]`);
+}
+
+document.addEventListener('click', () => {
+  if (openMenuId !== null) { openMenuId = null; buildList(); }
+});
+
+function selectPlace(id, pan) {
+  const prevId = selectedId;
+  selectedId = id;
+  if (prevId !== null) refreshMarkerIcon(prevId);
+  const p = PLACES.find(pp => pp.id === id);
+  const marker = markers.get(id);
+  if (!p || !marker) return;
+  refreshMarkerIcon(id);
+  buildList();
+  const el = listEl.querySelector(`[data-id="${id}"]`);
   if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   if (pan) {
-    map.setView([PLACES[i].lat, PLACES[i].lng], Math.max(map.getZoom(), 15), { animate: true });
+    map.setView([p.lat, p.lng], Math.max(map.getZoom(), 15), { animate: true });
   }
-  markers[i].openPopup();
+  marker.openPopup();
 }
 
 function updateMarkers() {
-  PLACES.forEach((p, i) => {
+  PLACES.forEach(p => {
     const show = activeFilter === 'All' || p.cat === activeFilter;
-    if (show && !map.hasLayer(markers[i])) markers[i].addTo(map);
-    if (!show && map.hasLayer(markers[i])) markers[i].remove();
+    const marker = markers.get(p.id);
+    if (!marker) return;
+    if (show && !map.hasLayer(marker)) marker.addTo(map);
+    if (!show && map.hasLayer(marker)) marker.remove();
   });
 }
+
+// ── Tried / delete / add ────────────────────────────────────────────
+async function authedFetch(url, options = {}) {
+  const stored = localStorage.getItem('foodiePasscode');
+  const headers = { ...(options.headers || {}) };
+  if (stored) headers['x-foodie-passcode'] = stored;
+  let res = await fetch(url, { ...options, headers });
+  if (res.status === 401) {
+    const code = prompt('Enter passcode to make changes:');
+    if (!code) return res;
+    localStorage.setItem('foodiePasscode', code);
+    res = await fetch(url, { ...options, headers: { ...headers, 'x-foodie-passcode': code } });
+    if (res.status === 401) localStorage.removeItem('foodiePasscode');
+  }
+  return res;
+}
+
+async function toggleTried(id, ev) {
+  if (ev) ev.stopPropagation();
+  const p = PLACES.find(pp => pp.id === id);
+  if (!p || p.cat === 'Hotel') return;
+  p.tried = !p.tried;
+  refreshMarkerIcon(id);
+  buildList();
+  try {
+    const res = await authedFetch(API, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ city: CITY, id, tried: p.tried }),
+    });
+    if (!res.ok) throw new Error('save failed');
+  } catch (e) {
+    console.error('Failed to save tried state', e);
+    p.tried = !p.tried;
+    refreshMarkerIcon(id);
+    buildList();
+  }
+}
+
+async function deletePlace(id, ev) {
+  if (ev) ev.stopPropagation();
+  if (!confirm('Remove this place from your list?')) return;
+  try {
+    const res = await authedFetch(`${API}?city=${CITY}&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('delete failed');
+  } catch (e) {
+    console.error('Failed to delete place', e);
+    alert('Could not remove this place — check your passcode and try again.');
+    return;
+  }
+  const marker = markers.get(id);
+  if (marker) { marker.closePopup(); marker.remove(); markers.delete(id); }
+  const idx = PLACES.findIndex(p => p.id === id);
+  if (idx !== -1) PLACES.splice(idx, 1);
+  if (selectedId === id) selectedId = null;
+  buildList();
+}
+
+async function geocodeAddress(addr) {
+  const query = `${addr}, ${CITY_LABEL}`;
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(query)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Geocoding request failed');
+  const results = await res.json();
+  if (!results.length) throw new Error('Address not found');
+  return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) };
+}
+
+const addModalOverlay = document.getElementById('add-modal-overlay');
+const addForm = document.getElementById('add-form');
+const addCatSelect = document.getElementById('add-cat');
+const addError = document.getElementById('add-error');
+const addSubmitBtn = document.getElementById('add-submit');
+
+function populateCategorySelect() {
+  const prevValue = addCatSelect.value;
+  addCatSelect.innerHTML = '';
+  Object.entries(CATEGORIES).forEach(([key, cat]) => {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = cat.label;
+    addCatSelect.appendChild(opt);
+  });
+  const newOpt = document.createElement('option');
+  newOpt.value = '__new__';
+  newOpt.textContent = '+ New category…';
+  addCatSelect.appendChild(newOpt);
+  if (CATEGORIES[prevValue]) addCatSelect.value = prevValue;
+}
+
+addCatSelect.addEventListener('change', async () => {
+  if (addCatSelect.value !== '__new__') return;
+  const label = prompt('New category name:');
+  if (!label || !label.trim()) { addCatSelect.value = Object.keys(CATEGORIES)[0]; return; }
+  const key = await createCategory(label);
+  populateCategorySelect();
+  buildFilters();
+  buildMapFilterChips();
+  addCatSelect.value = key || Object.keys(CATEGORIES)[0];
+});
+
+const addModalTitle = document.getElementById('add-modal-title');
+let editingPlaceId = null;
+let editingOriginalAddr = '';
+
+function openAddModal() {
+  editingPlaceId = null;
+  addForm.reset();
+  addError.classList.remove('show');
+  addModalTitle.textContent = 'Add a place';
+  addSubmitBtn.textContent = 'Add place';
+  addModalOverlay.classList.add('open');
+}
+
+function openEditModal(id, ev) {
+  if (ev) ev.stopPropagation();
+  openMenuId = null;
+  const p = PLACES.find(pp => pp.id === id);
+  if (!p) return;
+  editingPlaceId = id;
+  editingOriginalAddr = p.addr;
+  addForm.reset();
+  addError.classList.remove('show');
+  document.getElementById('add-name').value = p.name;
+  populateCategorySelect();
+  addCatSelect.value = p.cat;
+  document.getElementById('add-addr').value = p.addr;
+  document.getElementById('add-note').value = p.note;
+  addModalTitle.textContent = 'Edit place';
+  addSubmitBtn.textContent = 'Save changes';
+  addModalOverlay.classList.add('open');
+}
+
+function closeAddModal() {
+  addModalOverlay.classList.remove('open');
+}
+
+addModalOverlay.addEventListener('click', (e) => {
+  if (e.target === addModalOverlay) closeAddModal();
+});
+
+addForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  addError.classList.remove('show');
+  const name = document.getElementById('add-name').value.trim();
+  const cat = addCatSelect.value;
+  const addr = document.getElementById('add-addr').value.trim();
+  const note = document.getElementById('add-note').value.trim();
+  if (!name || !addr) return;
+
+  const submitLabel = editingPlaceId ? 'Save changes' : 'Add place';
+  let coords = null;
+  const addrChanged = !editingPlaceId || addr !== editingOriginalAddr;
+  if (addrChanged) {
+    addSubmitBtn.disabled = true;
+    addSubmitBtn.textContent = 'Locating…';
+    try {
+      coords = await geocodeAddress(addr);
+    } catch (err) {
+      addError.textContent = "Couldn't find that address — try adding more detail.";
+      addError.classList.add('show');
+      addSubmitBtn.disabled = false;
+      addSubmitBtn.textContent = submitLabel;
+      return;
+    }
+  }
+
+  addSubmitBtn.disabled = true;
+  addSubmitBtn.textContent = 'Saving…';
+
+  if (editingPlaceId) {
+    const id = editingPlaceId;
+    const p = PLACES.find(pp => pp.id === id);
+    const fields = { name, cat, addr, note };
+    if (coords) { fields.lat = coords.lat; fields.lng = coords.lng; }
+    try {
+      const res = await authedFetch(API, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ city: CITY, id, edits: fields }),
+      });
+      if (res.status === 401) throw new Error('unauthorized');
+      if (!res.ok) throw new Error('save failed');
+      Object.assign(p, fields);
+      refreshMarkerIcon(id);
+      const marker = markers.get(id);
+      if (coords && marker) marker.setLatLng([coords.lat, coords.lng]);
+      updateMarkers();
+      buildList();
+      closeAddModal();
+    } catch (err) {
+      addError.textContent = err.message === 'unauthorized'
+        ? 'Wrong passcode — try again.'
+        : 'Something went wrong saving this place — try again.';
+      addError.classList.add('show');
+    } finally {
+      addSubmitBtn.disabled = false;
+      addSubmitBtn.textContent = submitLabel;
+    }
+    return;
+  }
+
+  try {
+    const res = await authedFetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ city: CITY, place: { name, cat, addr, note, lat: coords.lat, lng: coords.lng } }),
+    });
+    if (res.status === 401) throw new Error('unauthorized');
+    if (!res.ok) throw new Error('Save failed');
+    const saved = await res.json();
+    saved.custom = true;
+    saved.tried = false;
+    PLACES.push(saved);
+    addMarkerFor(saved);
+    updateMarkers();
+    buildList();
+    closeAddModal();
+    selectPlace(saved.id, true);
+  } catch (err) {
+    addError.textContent = err.message === 'unauthorized'
+      ? 'Wrong passcode — try again.'
+      : 'Something went wrong saving this place — try again.';
+    addError.classList.add('show');
+  } finally {
+    addSubmitBtn.disabled = false;
+    addSubmitBtn.textContent = submitLabel;
+  }
+});
 
 // ── Mobile map toggle ─────────────────────────────────────────────────
 let mapVisible = false;
@@ -589,9 +1275,13 @@ function toggleMobileView() {
   icon.textContent = mapVisible ? '☰' : '🗺';
   if (mapVisible) setTimeout(() => {
     map.invalidateSize();
-    if (selectedIdx !== null) {
-      map.setView([PLACES[selectedIdx].lat, PLACES[selectedIdx].lng], Math.max(map.getZoom(), 15));
-      markers[selectedIdx].openPopup();
+    if (selectedId !== null) {
+      const p = PLACES.find(pp => pp.id === selectedId);
+      const marker = markers.get(selectedId);
+      if (p && marker) {
+        map.setView([p.lat, p.lng], Math.max(map.getZoom(), 15));
+        marker.openPopup();
+      }
     }
   }, 50);
 }
@@ -626,9 +1316,15 @@ function toggleMapFilters() {
   document.getElementById('map-filter-arrow').textContent = mapFiltersOpen ? '▴' : '▾';
 }
 
-buildFilters();
-buildList();
-buildMapFilterChips();
+async function init() {
+  await loadRemoteState();
+  PLACES.forEach(addMarkerFor);
+  populateCategorySelect();
+  buildFilters();
+  buildList();
+  buildMapFilterChips();
+}
+init();
 </script>
 </body>
 </html>
