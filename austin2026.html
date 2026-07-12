@@ -1419,17 +1419,7 @@ function categoryKeyForLabel(label) {
 
 const autofillBtn = document.getElementById('autofill-btn');
 
-function refreshDerivedMapsLink() {
-  const urlEl = document.getElementById('add-url');
-  const cur = urlEl.value.trim();
-  if (cur.startsWith('https://www.google.com/maps/search/?api=1&query=')) {
-    const nm = document.getElementById('add-name').value.trim();
-    const ad = document.getElementById('add-addr').value.trim();
-    if (nm && ad) urlEl.value = mapsLink(nm, ad);
-  }
-}
-document.getElementById('add-name').addEventListener('input', refreshDerivedMapsLink);
-document.getElementById('add-addr').addEventListener('input', () => { knownCoords = null; refreshDerivedMapsLink(); });
+document.getElementById('add-addr').addEventListener('input', () => { knownCoords = null; });
 document.getElementById('add-url').addEventListener('input', (e) => {
   const c = coordsFromMapsUrl(e.target.value.trim());
   if (c) knownCoords = c;
@@ -1458,7 +1448,7 @@ async function autoFillFromName() {
 
     document.getElementById('add-name').value = data.name;
     document.getElementById('add-addr').value = data.address;
-    document.getElementById('add-url').value = data.mapsUrl || mapsLink(data.name, data.address);
+    document.getElementById('add-url').value = data.mapsUrl || '';
     document.getElementById('add-note').value = data.note || '';
     let key = categoryKeyForLabel(data.category);
     if (!key && data.category) {
