@@ -186,7 +186,7 @@
       background: var(--text);
     }
 
-    .place-name { font-size: .88rem; font-weight: 500; line-height: 1.3; }
+    .place-name { font-size: .88rem; font-weight: 500; line-height: 1.3; padding-right: 50px; }
     .place-note { font-size: .72rem; color: var(--muted); margin-top: 2px; line-height: 1.4; font-style: italic; }
     .place-meta { font-size: .68rem; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; min-width: 0; }
 
@@ -376,6 +376,7 @@
       .place-note { font-size: .82rem; }
       .place-meta { font-size: .78rem; }
       .place-item { padding: 15px 18px; }
+      .place-actions { top: 14px; right: 16px; }
       #place-list { padding-bottom: 96px; }
     }
 
@@ -414,6 +415,9 @@
 
     /* ── Tried toggle + delete on list items ── */
     .place-item-body { flex: 1; min-width: 0; }
+
+    /* Pin + kebab float top-right so the body (and address) uses the full width. */
+    .place-actions { position: absolute; top: 12px; right: 22px; display: flex; align-items: center; gap: 2px; }
 
     .tried-toggle {
       flex-shrink: 0;
@@ -801,6 +805,11 @@ function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
+// Hotels get special treatment (bed icon, top-sort, no tried-toggle). The
+// category key may be 'Hotel' (seeded) or 'hotel' (app-created via slugify),
+// so match case-insensitively.
+function isHotelCat(cat) { return (cat || '').toLowerCase() === 'hotel'; }
+
 const CITY = new URLSearchParams(location.search).get('city') || '';
 let CITY_LABEL = '';
 const SUPABASE_URL = 'https://almchnjiepfqqgzvqnkb.supabase.co';
@@ -935,7 +944,7 @@ function popupHtml(p) {
       <div class="popup-note">${p.note}</div>
       <a class="popup-link" href="${placeMapsLink(p)}" target="_blank" rel="noopener">${shortAddr(p.addr)}&nbsp;→</a>
       <div class="popup-actions">
-        ${p.cat === 'Hotel' ? '' : `<button class="popup-action" onclick="toggleTried('${p.id}', event)">${p.tried ? '✓ Tried' : 'Tried'}</button>`}
+        ${isHotelCat(p.cat) ? '' : `<button class="popup-action" onclick="toggleTried('${p.id}', event)">${p.tried ? '✓ Tried' : 'Tried'}</button>`}
         <button class="popup-action" onclick="togglePinned('${p.id}', event)">${p.pinned ? '★ Pinned' : 'Pin'}</button>
         <button class="popup-action" onclick="openEditModal('${p.id}', event)">Edit</button>
         <button class="popup-action danger" onclick="deletePlace('${p.id}', event)">Remove</button>
@@ -947,14 +956,14 @@ function refreshMarkerIcon(id) {
   const p = PLACES.find(pp => pp.id === id);
   const marker = markers.get(id);
   if (!p || !marker) return;
-  marker.setIcon(makeIcon(selectedId === id, p.tried, p.cat === 'Hotel', p.pinned));
+  marker.setIcon(makeIcon(selectedId === id, p.tried, isHotelCat(p.cat), p.pinned));
   if (marker.isPopupOpen()) marker.setPopupContent(popupHtml(p));
 }
 
 function addMarkerFor(p) {
   const marker = L.marker([p.lat, p.lng], {
-    icon: makeIcon(false, p.tried, p.cat === 'Hotel', p.pinned),
-    zIndexOffset: p.cat === 'Hotel' ? 1000 : 0,
+    icon: makeIcon(false, p.tried, isHotelCat(p.cat), p.pinned),
+    zIndexOffset: isHotelCat(p.cat) ? 1000 : 0,
   })
     .addTo(map)
     .bindPopup(() => popupHtml(p), { maxWidth: 290, autoPan: false });
@@ -1001,7 +1010,7 @@ let categoriesEditMode = false;
 
 function sortedCategoryEntries(includeHotel) {
   return Object.entries(CATEGORIES)
-    .filter(([key]) => includeHotel || key !== 'Hotel')
+    .filter(([key]) => includeHotel || !isHotelCat(key))
     .sort((a, b) => a[1].label.localeCompare(b[1].label));
 }
 
@@ -1079,7 +1088,9 @@ function startRenameCategory(chip, key) {
 async function createCategory(label) {
   const trimmed = label.trim();
   if (!trimmed) return null;
-  let key = slugify(trimmed);
+  // Canonical key for hotels so they always get the special treatment (bed icon,
+  // top-sort, hidden from filters) consistently — slugify would lowercase to 'hotel'.
+  let key = isHotelCat(trimmed) ? 'Hotel' : slugify(trimmed);
   let n = 2;
   while (CATEGORIES[key]) { key = `${slugify(trimmed)}-${n++}`; }
   const color = CATEGORY_PALETTE[Object.keys(CATEGORIES).length % CATEGORY_PALETTE.length];
@@ -1146,8 +1157,8 @@ function setFilter(key) {
 function buildList() {
   listEl.innerHTML = '';
   const visible = PLACES.filter(p => activeFilter === 'All' || p.cat === activeFilter);
-  const tryTotal = PLACES.filter(p => p.cat !== 'Hotel').length;
-  const tryVisible = visible.filter(p => p.cat !== 'Hotel').length;
+  const tryTotal = PLACES.filter(p => !isHotelCat(p.cat)).length;
+  const tryVisible = visible.filter(p => !isHotelCat(p.cat)).length;
   countEl.textContent = PLACES.length === 0
     ? 'No places yet'
     : (activeFilter === 'All' ? `${tryTotal} places to try` : `${tryVisible} of ${tryTotal} places`);
@@ -1158,7 +1169,7 @@ function buildList() {
   }
 
   const sorted = [...visible].sort((a, b) => {
-    const aHotel = a.cat === 'Hotel', bHotel = b.cat === 'Hotel';
+    const aHotel = isHotelCat(a.cat), bHotel = isHotelCat(b.cat);
     if (aHotel !== bHotel) return aHotel ? -1 : 1;
     if (!aHotel && a.pinned !== b.pinned) return a.pinned ? -1 : 1;
     return a.name.localeCompare(b.name);
@@ -1166,7 +1177,7 @@ function buildList() {
 
   sorted.forEach(p => {
     const cat = CATEGORIES[p.cat];
-    const isHotel = p.cat === 'Hotel';
+    const isHotel = isHotelCat(p.cat);
     const item = document.createElement('div');
     item.className = 'place-item' + (selectedId === p.id ? ' selected' : '') + (p.tried ? ' tried' : '');
     item.dataset.id = p.id;
@@ -1175,14 +1186,16 @@ function buildList() {
       <div class="place-item-body">
         <div class="place-name">${p.name}</div>
         <div class="place-note">${p.note}</div>
-        <div class="place-meta">${isHotel ? '' : `<span class="cat-pill">${cat ? cat.label : p.cat}</span> `}<a class="place-maps" href="${placeMapsLink(p)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${shortAddr(p.addr)}&nbsp;→</a></div>
+        <div class="place-meta"><span class="cat-pill">${cat ? cat.label : p.cat}</span> <a class="place-maps" href="${placeMapsLink(p)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${shortAddr(p.addr)}&nbsp;→</a></div>
       </div>
-      <button class="pin-toggle${p.pinned ? ' pinned' : ''}" title="${p.pinned ? 'Unpin' : 'Pin'}" onclick="togglePinned('${p.id}', event)">${PIN_ICON_SVG}</button>
-      <div class="item-menu-wrap">
-        <button class="item-menu-btn" title="More" onclick="toggleItemMenu('${p.id}', event)">⋯</button>
-        <div class="item-menu${openMenuId === p.id ? ' open' : ''}">
-          <button onclick="openEditModal('${p.id}', event)">Edit</button>
-          <button class="danger" onclick="deletePlace('${p.id}', event)">Delete</button>
+      <div class="place-actions">
+        <button class="pin-toggle${p.pinned ? ' pinned' : ''}" title="${p.pinned ? 'Unpin' : 'Pin'}" onclick="togglePinned('${p.id}', event)">${PIN_ICON_SVG}</button>
+        <div class="item-menu-wrap">
+          <button class="item-menu-btn" title="More" onclick="toggleItemMenu('${p.id}', event)">⋯</button>
+          <div class="item-menu${openMenuId === p.id ? ' open' : ''}">
+            <button onclick="openEditModal('${p.id}', event)">Edit</button>
+            <button class="danger" onclick="deletePlace('${p.id}', event)">Delete</button>
+          </div>
         </div>
       </div>`;
     item.onclick = () => selectPlace(p.id, true);
@@ -1211,6 +1224,13 @@ function selectPlace(id, pan) {
   buildList();
   const el = listEl.querySelector(`[data-id="${id}"]`);
   if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  // On mobile a list tap reveals the pin — flip to the map view (which centers on
+  // the selected place and opens its popup), since the list can't show the map move.
+  const isMobile = window.matchMedia('(max-width: 680px)').matches;
+  if (pan && isMobile && !mapVisible) {
+    toggleMobileView();
+    return;
+  }
   if (pan) {
     map.setView([p.lat, p.lng], Math.max(map.getZoom(), 15), { animate: true });
   }
@@ -1254,7 +1274,7 @@ function dbWrite(payload) {
 async function toggleTried(id, ev) {
   if (ev) ev.stopPropagation();
   const p = PLACES.find(pp => pp.id === id);
-  if (!p || p.cat === 'Hotel') return;
+  if (!p || isHotelCat(p.cat)) return;
   p.tried = !p.tried;
   refreshMarkerIcon(id);
   buildList();
@@ -1419,7 +1439,7 @@ async function autoFillFromName() {
   autofillBtn.textContent = 'Looking up…';
 
   try {
-    const exampleNotes = PLACES.filter(p => p.note && p.cat !== 'Hotel').slice(0, 3).map(p => p.note);
+    const exampleNotes = PLACES.filter(p => p.note && !isHotelCat(p.cat)).slice(0, 3).map(p => p.note);
     const categories = Object.values(CATEGORIES).map(c => c.label);
     const res = await authedFetch(ENRICH_API, {
       method: 'POST',

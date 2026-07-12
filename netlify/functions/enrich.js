@@ -48,7 +48,7 @@ Rules:
       model: 'claude-sonnet-5',
       max_tokens: 1024,
       system,
-      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 2 }],
+      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 1 }],
       messages: [
         { role: 'user', content: `Place name: "${name}"\nDestination: ${cityLabel}` },
       ],
