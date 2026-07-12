@@ -514,6 +514,11 @@ tripForm.addEventListener('submit', async (e) => {
     if (res.status === 401) throw new Error('unauthorized');
     if (!res.ok) throw new Error('create failed');
     const trip = await res.json();
+    // Every list gets a default Hotel category — hidden from the filter pills,
+    // so it never clutters, but keeps new lists consistent with the built-in ones.
+    try {
+      await dbWrite({ table: 'categories', op: 'insert', values: { trip_slug: trip.slug, key: 'Hotel', label: 'Hotel', color: '#1a1917' } });
+    } catch (e) { /* non-fatal — enrich.js also tolerates a category-less trip */ }
     window.location.href = `trip.html?city=${encodeURIComponent(trip.slug)}`;
   } catch (err) {
     tripError.textContent = err.message === 'unauthorized'

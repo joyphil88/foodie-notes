@@ -24,9 +24,10 @@ exports.handler = async (event) => {
   }
 
   const { name, cityLabel, categories, exampleNotes } = body;
-  if (!name || !cityLabel || !Array.isArray(categories) || categories.length === 0) {
-    return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'name, cityLabel, and categories are required' }) };
+  if (!name || !cityLabel) {
+    return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'name and cityLabel are required' }) };
   }
+  const cats = Array.isArray(categories) ? categories.filter(Boolean) : [];
 
   const styleExamples = (exampleNotes || []).slice(0, 3).map((n) => `- "${n}"`).join('\n')
     || '- "No-frills neighborhood spot — known for its brisket sandwich."';
@@ -35,7 +36,7 @@ exports.handler = async (event) => {
 {"name": "<corrected/canonical name>", "address": "<street address>", "category": "<one of the provided categories>", "note": "<one-line note>", "lat": <decimal latitude>, "lng": <decimal longitude>, "mapsUrl": "<google maps url or empty>"}
 
 Rules:
-- "category": a short, specific type for this place. Prefer one of these existing categories if it genuinely fits: ${categories.join(', ')}. If none fit well, propose a new specific category of your own (e.g. "Seafood", "BBQ", "Ramen", "Coffee", "Tacos", "Bakery", "Wine Bar", "Pizza"). NEVER use a vague catch-all like "Food", "Restaurant", or "Dining" — always pick something specific. Use "Hotel" only for actual lodging.
+- "category": a short, specific type for this place. ${cats.length ? `Prefer one of these existing categories if it genuinely fits: ${cats.join(', ')}. If none fit well, propose` : 'Propose'} a specific category of your own (e.g. "Seafood", "BBQ", "Ramen", "Coffee", "Tacos", "Bakery", "Wine Bar", "Pizza"). NEVER use a vague catch-all like "Food", "Restaurant", or "Dining" — always pick something specific. Use "Hotel" only for actual lodging.
 - "note" must be VERY short — a single tight phrase that fits on one line (aim for 4–8 words, hard max ~10). No full sentences, no fluff. Name the one thing worth ordering or the one reason to go. Examples of the right length: "Brisket sandwich, smoked jalapeño sausage.", "Order the omakase nigiri.", "Chocolate haupia cream pie."
 - "lat" and "lng" are the place's decimal coordinates as plain numbers (e.g. 21.3069, -157.8583). Give your best estimate from your own knowledge and the address — do NOT run extra searches just to find coordinates.
 - "mapsUrl": only include a Google Maps URL if one already appeared in search results you viewed; otherwise use an empty string. Never search specifically for it, and never invent one.
