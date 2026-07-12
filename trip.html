@@ -172,10 +172,12 @@
       transition: background .1s;
       border-bottom: 1px solid var(--border);
       position: relative;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .place-item:last-child { border-bottom: none; }
-    .place-item:hover { background: var(--light); }
+    /* Only highlight on real hover (desktop) — avoids sticky :hover on touch taps. */
+    @media (hover: hover) { .place-item:hover { background: var(--light); } }
     .place-item.selected { background: var(--light); }
 
     .place-item.selected::before {
@@ -817,6 +819,12 @@ function slugify(s) {
 // so match case-insensitively.
 function isHotelCat(cat) { return (cat || '').toLowerCase() === 'hotel'; }
 
+// Normalize a category label to Title Case, but leave already-all-caps words
+// (acronyms like "BBQ", "TexMex") alone. "korean" -> "Korean", "wine bar" -> "Wine Bar".
+function titleCaseCat(s) {
+  return (s || '').trim().replace(/\S+/g, w => /^[A-Z0-9&/]+$/.test(w) ? w : w[0].toUpperCase() + w.slice(1).toLowerCase());
+}
+
 const CITY = new URLSearchParams(location.search).get('city') || '';
 let CITY_LABEL = '';
 const SUPABASE_URL = 'https://almchnjiepfqqgzvqnkb.supabase.co';
@@ -1093,7 +1101,7 @@ function startRenameCategory(chip, key) {
 }
 
 async function createCategory(label) {
-  const trimmed = label.trim();
+  const trimmed = titleCaseCat(label);
   if (!trimmed) return null;
   // Canonical key for hotels so they always get the special treatment (bed icon,
   // top-sort, hidden from filters) consistently — slugify would lowercase to 'hotel'.
@@ -1135,7 +1143,7 @@ async function deleteCategory(key) {
 }
 
 async function renameCategory(key, newLabel) {
-  const trimmed = newLabel.trim();
+  const trimmed = titleCaseCat(newLabel);
   if (!trimmed || trimmed === CATEGORIES[key].label) { buildFilters(); return; }
   try {
     const res = await dbWrite({ table: 'categories', op: 'update', match: { trip_slug: CITY, key }, values: { label: trimmed } });
@@ -1365,7 +1373,9 @@ const addSubmitBtn = document.getElementById('add-submit');
 
 function renderCatSelect(open) {
   const label = selectedCatKey && CATEGORIES[selectedCatKey] ? CATEGORIES[selectedCatKey].label : 'Select…';
-  const opts = sortedCategoryEntries(true).map(([key, cat]) =>
+  // Hotel is the special auto-managed category — keep it out of the picker unless the
+  // place being edited is already a hotel (so its current selection still shows).
+  const opts = sortedCategoryEntries(isHotelCat(selectedCatKey)).map(([key, cat]) =>
     `<div class="cselect-opt${key === selectedCatKey ? ' selected' : ''}" data-key="${key}">${cat.label}</div>`
   ).join('');
   catSelectEl.className = 'cselect' + (open ? ' open' : '');
