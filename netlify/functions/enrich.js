@@ -48,7 +48,7 @@ Rules:
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       system,
-      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 1 }],
+      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 1, allowed_callers: ['direct'] }],
       messages: [
         { role: 'user', content: `Place name: "${name}"\nDestination: ${cityLabel}` },
       ],
