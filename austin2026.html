@@ -93,7 +93,10 @@
       margin-top: 4px;
     }
 
-    #count-label { font-size: .7rem; color: var(--muted); margin-top: 9px; }
+    #count-label { font-size: .7rem; color: var(--muted); white-space: nowrap; }
+    .subhead-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 4px; }
+    .subhead { font-size: .92rem; font-weight: 400; color: var(--muted); font-family: 'Inter', sans-serif; }
+    .cat-pill { display: inline-block; font-size: .56rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border: 1px solid var(--border); border-radius: 20px; color: var(--muted); }
 
     /* ── Filters ── */
     #filters {
@@ -720,7 +723,7 @@
     <div class="sidebar-header">
       <a class="back-link" href="index.html">← Foodie Notes</a>
       <div class="header-main">
-        <h1>Austin<span>Texas · 2026</span></h1>
+        <h1>Austin</h1>
         <div class="header-menu-wrap">
           <button class="header-menu-btn" title="More" onclick="toggleHeaderMenu(event)">⋯</button>
           <div class="header-menu" id="header-menu">
@@ -729,7 +732,10 @@
           </div>
         </div>
       </div>
-      <div id="count-label">Loading…</div>
+      <div class="subhead-row">
+        <span class="subhead">Texas · 2026</span>
+        <div id="count-label">Loading…</div>
+      </div>
     </div>
     <div id="filters"></div>
     <div id="place-list"></div>
@@ -844,11 +850,16 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
 }).addTo(map);
 
 function makeIcon(selected, tried, isHotel, pinned) {
+  const pinnedDot = pinned ? '<span style="position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:50%;background:#e74c3c;border:1.5px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.3);"></span>' : '';
+  if (isHotel) {
+    const size = selected ? 32 : 27;
+    const html = `<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:#fff;border:1.5px solid #1a1917;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 5px rgba(0,0,0,.3);color:#1a1917;">${HOTEL_ICON_SVG}${pinnedDot}</div>`;
+    return L.divIcon({ html, className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2], popupAnchor: [0, -(size / 2) - 2] });
+  }
   const base = selected ? 26 : 20;
-  let pinColor = isHotel ? '#1a1917' : '#c8a96e';
-  if (tried) pinColor = '#6b8e5a';
+  let pinColor = tried ? '#6b8e5a' : '#c8a96e';
   if (selected) pinColor = '#1a1917';
-  const badge = pinned ? '<circle cx="19" cy="6" r="4.5" fill="#c8a96e" stroke="#fff" stroke-width="1.5"/>' : '';
+  const badge = pinned ? '<circle cx="19" cy="6" r="4.5" fill="#e74c3c" stroke="#fff" stroke-width="1.5"/>' : '';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="${base}" height="${base * 1.5}">
     <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24C24 5.373 18.627 0 12 0z" fill="${pinColor}"/>
     <circle cx="12" cy="12" r="4.5" fill="rgba(255,255,255,.9)"/>
@@ -953,7 +964,7 @@ const markers = new Map();
 
 function popupHtml(p) {
   return `<div class="popup-body">
-      <div class="popup-cat">${CATEGORIES[p.cat].label}</div>
+      <div class="popup-cat">${(CATEGORIES[p.cat] || { label: p.cat }).label}</div>
       <div class="popup-name">${p.name}</div>
       <div class="popup-note">${p.note}</div>
       <a class="popup-link" href="${placeMapsLink(p)}" target="_blank" rel="noopener">${shortAddr(p.addr)}&nbsp;→</a>
@@ -980,7 +991,7 @@ function addMarkerFor(p) {
     zIndexOffset: p.cat === 'Hotel' ? 1000 : 0,
   })
     .addTo(map)
-    .bindPopup(() => popupHtml(p), { maxWidth: 290, autoPanPaddingTopLeft: L.point(12, 76) });
+    .bindPopup(() => popupHtml(p), { maxWidth: 290, autoPan: false });
   marker.on('click', () => { selectPlace(p.id, false); });
   marker.on('popupclose', () => {
     if (selectedId === p.id) {
@@ -1206,7 +1217,7 @@ function buildList() {
       <div class="place-item-body">
         <div class="place-name">${p.name}</div>
         <div class="place-note">${p.note}</div>
-        <div class="place-meta">${cat.label} &nbsp;·&nbsp; <a class="place-maps" href="${placeMapsLink(p)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${shortAddr(p.addr)}&nbsp;→</a></div>
+        <div class="place-meta"><span class="cat-pill">${cat.label}</span> <a class="place-maps" href="${placeMapsLink(p)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${shortAddr(p.addr)}&nbsp;→</a></div>
       </div>
       <button class="pin-toggle${p.pinned ? ' pinned' : ''}" title="${p.pinned ? 'Unpin' : 'Pin'}" onclick="togglePinned('${p.id}', event)">${PIN_ICON_SVG}</button>
       <div class="item-menu-wrap">
@@ -1425,6 +1436,24 @@ document.getElementById('add-url').addEventListener('input', (e) => {
   if (c) knownCoords = c;
 });
 
+async function commitNewPlace(place) {
+  const res = await authedFetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ city: CITY, place }),
+  });
+  if (res.status === 401) throw new Error('unauthorized');
+  if (!res.ok) throw new Error('Save failed');
+  const saved = await res.json();
+  saved.custom = true;
+  saved.tried = false;
+  PLACES.push(saved);
+  addMarkerFor(saved);
+  updateMarkers();
+  buildList();
+  return saved;
+}
+
 async function autoFillFromName() {
   const name = document.getElementById('add-name').value.trim();
   if (!name) { document.getElementById('add-name').focus(); return; }
@@ -1456,9 +1485,24 @@ async function autoFillFromName() {
       if (key) { buildFilters(); buildMapFilterChips(); populateCategorySelect(); }
     }
     if (key) setCatValue(key);
-    knownCoords = (Number.isFinite(data.lat) && Number.isFinite(data.lng))
+    const cat = key || Object.keys(CATEGORIES)[0];
+    const coords = (Number.isFinite(data.lat) && Number.isFinite(data.lng))
       ? { lat: data.lat, lng: data.lng }
       : coordsFromMapsUrl(data.mapsUrl);
+    knownCoords = coords;
+
+    if (coords) {
+      try {
+        const saved = await commitNewPlace({ name: data.name, cat, addr: data.address, note: data.note || '', url: data.mapsUrl || '', lat: coords.lat, lng: coords.lng });
+        closeAddModal();
+        selectPlace(saved.id, true);
+        showToast(`Added ${saved.name}`);
+        return;
+      } catch (err) {
+        addError.textContent = err.message === 'unauthorized' ? 'Wrong passcode — review and add.' : 'Could not add automatically — review and add.';
+        addError.classList.add('show');
+      }
+    }
     showManualFields();
   } catch (err) {
     const messages = {
@@ -1604,20 +1648,7 @@ addForm.addEventListener('submit', async (e) => {
   }
 
   try {
-    const res = await authedFetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ city: CITY, place: { name, cat, addr, note, url, lat: coords.lat, lng: coords.lng } }),
-    });
-    if (res.status === 401) throw new Error('unauthorized');
-    if (!res.ok) throw new Error('Save failed');
-    const saved = await res.json();
-    saved.custom = true;
-    saved.tried = false;
-    PLACES.push(saved);
-    addMarkerFor(saved);
-    updateMarkers();
-    buildList();
+    const saved = await commitNewPlace({ name, cat, addr, note, url, lat: coords.lat, lng: coords.lng });
     closeAddModal();
     selectPlace(saved.id, true);
   } catch (err) {
@@ -1683,7 +1714,7 @@ function buildMapFilterChips() {
 
 function updateMapFilterHandle() {
   const label = document.getElementById('map-filter-label');
-  label.textContent = activeFilter === 'All' ? 'Filter' : CATEGORIES[activeFilter].label;
+  label.textContent = activeFilter === 'All' ? 'Filter' : (CATEGORIES[activeFilter] || { label: activeFilter }).label;
   buildMapFilterChips();
 }
 
