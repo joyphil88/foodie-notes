@@ -640,6 +640,9 @@
 
     .autofill-btn:hover { border-color: var(--text); }
     .autofill-btn:disabled { opacity: .5; cursor: default; }
+    .manual-hint { margin-top: 10px; }
+    .link-btn { background: none; border: none; color: var(--muted); font-size: .72rem; text-decoration: underline; cursor: pointer; padding: 0; font-family: 'Inter', sans-serif; }
+    .link-btn:hover { color: var(--text); }
 
     .modal-actions {
       display: flex;
@@ -753,17 +756,22 @@
     <form id="add-form">
       <label for="add-name">Name</label>
       <div class="name-row">
-        <input type="text" id="add-name" required />
-        <button type="button" class="autofill-btn" id="autofill-btn" onclick="autoFillFromName()">✨ Auto-fill</button>
+        <input type="text" id="add-name" required placeholder="Search a place by name…" />
+        <button type="button" class="autofill-btn" id="autofill-btn" onclick="autoFillFromName()">✨ Search</button>
       </div>
+      <div id="manual-hint" class="manual-hint">
+        <button type="button" class="link-btn" onclick="showManualFields()">Enter details manually instead</button>
+      </div>
+      <div id="manual-fields" hidden>
       <label for="add-cat">Category</label>
       <div id="add-cat-select" class="cselect"></div>
       <label for="add-addr">Address</label>
-      <input type="text" id="add-addr" required placeholder="e.g. 123 Main St, City" />
+      <input type="text" id="add-addr" placeholder="e.g. 123 Main St, City" />
       <label for="add-url">Google Maps link (optional)</label>
       <input type="url" id="add-url" placeholder="Paste a Google Maps link — pins the exact spot" />
       <label for="add-note">Note</label>
       <textarea id="add-note" placeholder="One line — what to order, why it's worth it"></textarea>
+      </div>
       <div class="modal-error" id="add-error"></div>
       <div class="modal-actions">
         <button type="button" onclick="closeAddModal()">Cancel</button>
@@ -1420,6 +1428,7 @@ async function autoFillFromName() {
     knownCoords = (Number.isFinite(data.lat) && Number.isFinite(data.lng))
       ? { lat: data.lat, lng: data.lng }
       : coordsFromMapsUrl(data.mapsUrl);
+    showManualFields();
   } catch (err) {
     const messages = {
       unauthorized: 'Wrong passcode — try again.',
@@ -1430,9 +1439,10 @@ async function autoFillFromName() {
     };
     addError.textContent = messages[err.message] || messages.unavailable;
     addError.classList.add('show');
+    showManualFields();
   } finally {
     autofillBtn.disabled = false;
-    autofillBtn.textContent = '✨ Auto-fill';
+    autofillBtn.textContent = '✨ Search';
   }
 }
 
@@ -1441,6 +1451,21 @@ document.addEventListener('click', () => { if (catSelectEl.classList.contains('o
 const addModalTitle = document.getElementById('add-modal-title');
 let editingPlaceId = null;
 let editingOriginalAddr = '';
+
+function resetAddModalToSearch() {
+  const mf = document.getElementById('manual-fields');
+  const mh = document.getElementById('manual-hint');
+  if (mf) mf.hidden = true;
+  if (mh) mh.hidden = false;
+  addSubmitBtn.hidden = true;
+}
+function showManualFields() {
+  const mf = document.getElementById('manual-fields');
+  const mh = document.getElementById('manual-hint');
+  if (mf) mf.hidden = false;
+  if (mh) mh.hidden = true;
+  addSubmitBtn.hidden = false;
+}
 
 function openAddModal() {
   editingPlaceId = null;
@@ -1451,6 +1476,7 @@ function openAddModal() {
   addError.classList.remove('show');
   addModalTitle.textContent = 'Add a place';
   addSubmitBtn.textContent = 'Add place';
+  resetAddModalToSearch();
   addModalOverlay.classList.add('open');
 }
 
@@ -1472,6 +1498,7 @@ function openEditModal(id, ev) {
   knownCoords = { lat: p.lat, lng: p.lng };
   addModalTitle.textContent = 'Edit place';
   addSubmitBtn.textContent = 'Save changes';
+  showManualFields();
   addModalOverlay.classList.add('open');
 }
 
@@ -1485,6 +1512,7 @@ addModalOverlay.addEventListener('click', (e) => {
 
 addForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (document.getElementById('manual-fields').hidden) { autoFillFromName(); return; }
   addError.classList.remove('show');
   const name = document.getElementById('add-name').value.trim();
   const cat = getCatValue();
