@@ -399,6 +399,14 @@
 
     .add-place-btn:hover { opacity: .8; }
 
+    .header-menu-wrap { position: relative; flex-shrink: 0; margin-top: 2px; }
+    .header-menu-btn { font-size: 1.2rem; line-height: 1; color: var(--muted); background: none; border: none; cursor: pointer; padding: 2px 8px; border-radius: 6px; }
+    .header-menu-btn:hover { background: var(--light); color: var(--text); }
+    .header-menu { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.14); min-width: 150px; z-index: 50; overflow: hidden; }
+    .header-menu.open { display: block; }
+    .header-menu button { display: block; width: 100%; text-align: left; padding: 10px 14px; font-size: .8rem; background: none; border: none; color: var(--text); cursor: pointer; white-space: nowrap; }
+    .header-menu button:hover { background: var(--light); }
+
     /* ── Tried toggle + delete on list items ── */
     .place-item-body { flex: 1; min-width: 0; }
 
@@ -678,7 +686,13 @@
       <a class="back-link" href="index.html">← Foodie Notes</a>
       <div class="header-main">
         <h1 id="trip-title">Loading…<span id="trip-subtitle"></span></h1>
-        <button class="add-place-btn" onclick="openAddModal()">+ Add place</button>
+        <div class="header-menu-wrap">
+          <button class="header-menu-btn" title="More" onclick="toggleHeaderMenu(event)">⋯</button>
+          <div class="header-menu" id="header-menu">
+            <button onclick="openAddModal(); closeHeaderMenu();">+ Add place</button>
+            <button onclick="enterCategoryEdit(); closeHeaderMenu();">Edit categories</button>
+          </div>
+        </div>
       </div>
       <div id="count-label"></div>
     </div>
@@ -784,6 +798,24 @@ function placeMapsLink(p) {
   return p.url ? p.url : mapsLink(p.name, p.addr);
 }
 
+function shortAddr(addr) {
+  return (addr || '').split(',')[0].trim();
+}
+
+function toggleHeaderMenu(ev) {
+  if (ev) ev.stopPropagation();
+  document.getElementById('header-menu').classList.toggle('open');
+}
+function closeHeaderMenu() {
+  const m = document.getElementById('header-menu');
+  if (m) m.classList.remove('open');
+}
+function enterCategoryEdit() {
+  categoriesEditMode = true;
+  buildFilters();
+}
+document.addEventListener('click', closeHeaderMenu);
+
 let activeFilter = 'All';
 let selectedId = null;
 let openMenuId = null;
@@ -794,7 +826,7 @@ function popupHtml(p) {
       <div class="popup-cat">${CATEGORIES[p.cat].label}</div>
       <div class="popup-name">${p.name}</div>
       <div class="popup-note">${p.note}</div>
-      <a class="popup-link" href="${placeMapsLink(p)}" target="_blank" rel="noopener">${p.addr}&nbsp;→</a>
+      <a class="popup-link" href="${placeMapsLink(p)}" target="_blank" rel="noopener">${shortAddr(p.addr)}&nbsp;→</a>
       <div class="popup-actions">
         ${p.cat === 'Hotel' ? '' : `<button class="popup-action" onclick="toggleTried('${p.id}', event)">${p.tried ? '✓ Tried' : 'Mark tried'}</button>`}
         <button class="popup-action" onclick="togglePinned('${p.id}', event)">${p.pinned ? '★ Pinned' : 'Pin'}</button>
@@ -913,12 +945,13 @@ function buildFilters() {
     filtersEl.appendChild(addChip);
   }
 
-  const editToggle = document.createElement('button');
-  editToggle.className = 'chip-kebab' + (categoriesEditMode ? ' active' : '');
-  editToggle.textContent = categoriesEditMode ? 'Done' : '⋯';
-  editToggle.title = categoriesEditMode ? 'Done editing categories' : 'Edit categories';
-  editToggle.onclick = () => { categoriesEditMode = !categoriesEditMode; buildFilters(); };
-  filtersEl.appendChild(editToggle);
+  if (categoriesEditMode) {
+    const done = document.createElement('button');
+    done.className = 'chip-kebab active';
+    done.textContent = 'Done';
+    done.onclick = () => { categoriesEditMode = false; buildFilters(); };
+    filtersEl.appendChild(done);
+  }
 }
 
 function startRenameCategory(chip, key) {
@@ -1048,7 +1081,7 @@ function buildList() {
       <div class="place-item-body">
         <div class="place-name">${p.name}</div>
         <div class="place-note">${p.note}</div>
-        <div class="place-meta">${cat ? cat.label : p.cat} &nbsp;·&nbsp; <a class="place-maps" href="${placeMapsLink(p)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${p.addr}&nbsp;→</a></div>
+        <div class="place-meta">${cat ? cat.label : p.cat} &nbsp;·&nbsp; <a class="place-maps" href="${placeMapsLink(p)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${shortAddr(p.addr)}&nbsp;→</a></div>
       </div>
       <button class="pin-toggle${p.pinned ? ' pinned' : ''}" title="${p.pinned ? 'Unpin' : 'Pin'}" onclick="togglePinned('${p.id}', event)">${PIN_ICON_SVG}</button>
       <div class="item-menu-wrap">
@@ -1266,7 +1299,11 @@ async function autoFillFromName() {
     document.getElementById('add-addr').value = data.address;
     document.getElementById('add-url').value = data.mapsUrl || '';
     document.getElementById('add-note').value = data.note || '';
-    const key = categoryKeyForLabel(data.category);
+    let key = categoryKeyForLabel(data.category);
+    if (!key && data.category) {
+      key = await createCategory(data.category);
+      if (key) { buildFilters(); buildMapFilterChips(); populateCategorySelect(); }
+    }
     if (key) addCatSelect.value = key;
     knownCoords = (Number.isFinite(data.lat) && Number.isFinite(data.lng))
       ? { lat: data.lat, lng: data.lng }

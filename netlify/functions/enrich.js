@@ -36,8 +36,7 @@ exports.handler = async (event) => {
 
 Rules:
 - "category" must be exactly one of these: ${categories.join(', ')}. Pick the closest fit.
-- "note" is a single sentence, in this house style (dash-separated hook + detail, no fluff):
-${styleExamples}
+- "note" must be VERY short — a single tight phrase that fits on one line (aim for 4–8 words, hard max ~10). No full sentences, no fluff. Name the one thing worth ordering or the one reason to go. Examples of the right length: "Brisket sandwich, smoked jalapeño sausage.", "Order the omakase nigiri.", "Chocolate haupia cream pie."
 - "lat" and "lng" are the place's decimal coordinates as plain numbers (e.g. 21.3069, -157.8583). Give your best estimate from your own knowledge and the address — do NOT run extra searches just to find coordinates.
 - "mapsUrl": only include a Google Maps URL if one already appeared in search results you viewed; otherwise use an empty string. Never search specifically for it, and never invent one.
 - If you cannot find the place with reasonable confidence, respond with {"error": "not found"} instead of guessing.`;
