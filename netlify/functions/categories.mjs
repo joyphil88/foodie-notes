@@ -1,8 +1,9 @@
-const { openStore, mutate } = require('./_store');
+import { openStore, mutate } from './_store.mjs';
 
 const emptyCategories = () => ({ custom: [], labels: {}, deletedKeys: [] });
 const emptyState = () => ({ custom: [], triedIds: [], pinnedIds: [], deletedIds: [], edits: {}, categories: emptyCategories() });
-const JSON_HEADERS = { 'Content-Type': 'application/json' };
+const HEADERS = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+const json = (status, obj) => new Response(JSON.stringify(obj), { status, headers: HEADERS });
 
 function cats(data) {
   data.categories = data.categories || emptyCategories();
@@ -12,20 +13,21 @@ function cats(data) {
   return data.categories;
 }
 
-exports.handler = async (event) => {
-  const store = openStore(event);
-  const method = event.httpMethod;
+export default async (req) => {
+  const store = openStore();
+  const url = new URL(req.url);
+  const method = req.method;
 
   const requiredPasscode = process.env.FOODIE_PASSCODE;
-  if (requiredPasscode && event.headers['x-foodie-passcode'] !== requiredPasscode) {
-    return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'invalid passcode' }) };
+  if (requiredPasscode && req.headers.get('x-foodie-passcode') !== requiredPasscode) {
+    return json(401, { error: 'invalid passcode' });
   }
 
   try {
     if (method === 'POST') {
-      const { city, key, label, color } = JSON.parse(event.body || '{}');
+      const { city, key, label, color } = await req.json();
       if (!city || !key || !label) {
-        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'city, key, and label required' }) };
+        return json(400, { error: 'city, key, and label required' });
       }
       try {
         const saved = await mutate(store, city, emptyState, (data) => {
@@ -35,17 +37,17 @@ exports.handler = async (event) => {
           c.custom.push(s);
           return s;
         });
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(saved) };
+        return json(200, saved);
       } catch (e) {
-        if (e.code === 'exists') return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: 'category already exists' }) };
+        if (e.code === 'exists') return json(409, { error: 'category already exists' });
         throw e;
       }
     }
 
     if (method === 'PATCH') {
-      const { city, key, label } = JSON.parse(event.body || '{}');
+      const { city, key, label } = await req.json();
       if (!city || !key || !label) {
-        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'city, key, and label required' }) };
+        return json(400, { error: 'city, key, and label required' });
       }
       await mutate(store, city, emptyState, (data) => {
         const c = cats(data);
@@ -53,13 +55,13 @@ exports.handler = async (event) => {
         const custom = c.custom.find((x) => x.key === key);
         if (custom) custom.label = label;
       });
-      return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
+      return json(200, { ok: true });
     }
 
     if (method === 'DELETE') {
-      const city = event.queryStringParameters?.city;
-      const key = event.queryStringParameters?.key;
-      if (!city || !key) return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'city and key required' }) };
+      const city = url.searchParams.get('city');
+      const key = url.searchParams.get('key');
+      if (!city || !key) return json(400, { error: 'city and key required' });
       await mutate(store, city, emptyState, (data) => {
         const c = cats(data);
         const idx = c.custom.findIndex((x) => x.key === key);
@@ -70,11 +72,11 @@ exports.handler = async (event) => {
         }
         delete c.labels[key];
       });
-      return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
+      return json(200, { ok: true });
     }
 
-    return { statusCode: 405, headers: JSON_HEADERS, body: JSON.stringify({ error: 'method not allowed' }) };
+    return json(405, { error: 'method not allowed' });
   } catch (err) {
-    return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: err.message }) };
+    return json(500, { error: err.message });
   }
 };

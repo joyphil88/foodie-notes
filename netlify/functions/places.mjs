@@ -1,31 +1,33 @@
-const { openStore, mutate, readJson } = require('./_store');
+import { openStore, mutate, readJson } from './_store.mjs';
 
 const emptyState = () => ({ custom: [], triedIds: [], pinnedIds: [], deletedIds: [], edits: {}, categories: { custom: [], labels: {}, deletedKeys: [] } });
-const JSON_HEADERS = { 'Content-Type': 'application/json' };
+const HEADERS = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+const json = (status, obj) => new Response(JSON.stringify(obj), { status, headers: HEADERS });
 
-exports.handler = async (event) => {
-  const store = openStore(event);
-  const method = event.httpMethod;
+export default async (req) => {
+  const store = openStore();
+  const url = new URL(req.url);
+  const method = req.method;
 
   try {
     if (method === 'GET') {
-      const city = event.queryStringParameters?.city;
-      if (!city) return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'city required' }) };
+      const city = url.searchParams.get('city');
+      if (!city) return json(400, { error: 'city required' });
       const data = (await readJson(store, city)) || emptyState();
       data.categories = data.categories || { custom: [], labels: {}, deletedKeys: [] };
       data.edits = data.edits || {};
-      return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(data) };
+      return json(200, data);
     }
 
     const requiredPasscode = process.env.FOODIE_PASSCODE;
-    if (requiredPasscode && event.headers['x-foodie-passcode'] !== requiredPasscode) {
-      return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'invalid passcode' }) };
+    if (requiredPasscode && req.headers.get('x-foodie-passcode') !== requiredPasscode) {
+      return json(401, { error: 'invalid passcode' });
     }
 
     if (method === 'POST') {
-      const { city, place } = JSON.parse(event.body || '{}');
+      const { city, place } = await req.json();
       if (!city || !place?.name || typeof place.lat !== 'number' || typeof place.lng !== 'number') {
-        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'city and place (with lat/lng) required' }) };
+        return json(400, { error: 'city and place (with lat/lng) required' });
       }
       const saved = await mutate(store, city, emptyState, (data) => {
         data.custom = data.custom || [];
@@ -42,13 +44,13 @@ exports.handler = async (event) => {
         data.custom.push(s);
         return s;
       });
-      return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(saved) };
+      return json(200, saved);
     }
 
     if (method === 'DELETE') {
-      const city = event.queryStringParameters?.city;
-      const id = event.queryStringParameters?.id;
-      if (!city || !id) return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'city and id required' }) };
+      const city = url.searchParams.get('city');
+      const id = url.searchParams.get('id');
+      if (!city || !id) return json(400, { error: 'city and id required' });
       await mutate(store, city, emptyState, (data) => {
         data.custom = data.custom || [];
         data.deletedIds = data.deletedIds || [];
@@ -62,12 +64,12 @@ exports.handler = async (event) => {
         data.pinnedIds = (data.pinnedIds || []).filter((t) => t !== id);
         if (data.edits) delete data.edits[id];
       });
-      return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
+      return json(200, { ok: true });
     }
 
     if (method === 'PATCH') {
-      const { city, id, tried, pinned, edits } = JSON.parse(event.body || '{}');
-      if (!city || !id) return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'city and id required' }) };
+      const { city, id, tried, pinned, edits } = await req.json();
+      if (!city || !id) return json(400, { error: 'city and id required' });
       await mutate(store, city, emptyState, (data) => {
         if (typeof tried === 'boolean') {
           const set = new Set(data.triedIds || []);
@@ -86,11 +88,11 @@ exports.handler = async (event) => {
           if (custom) Object.assign(custom, edits);
         }
       });
-      return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
+      return json(200, { ok: true });
     }
 
-    return { statusCode: 405, headers: JSON_HEADERS, body: JSON.stringify({ error: 'method not allowed' }) };
+    return json(405, { error: 'method not allowed' });
   } catch (err) {
-    return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: err.message }) };
+    return json(500, { error: err.message });
   }
 };
