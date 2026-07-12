@@ -37,6 +37,7 @@ exports.handler = async (event) => {
         cat: place.cat,
         addr: place.addr || '',
         note: place.note || '',
+        url: place.url || '',
         lat: place.lat,
         lng: place.lng,
       };

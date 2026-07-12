@@ -31,13 +31,15 @@ exports.handler = async (event) => {
   const styleExamples = (exampleNotes || []).slice(0, 3).map((n) => `- "${n}"`).join('\n')
     || '- "No-frills neighborhood spot — known for its brisket sandwich."';
 
-  const system = `You help fill in details for a personal food-travel wishlist app. Given a place name and a destination, search the web to confirm the place exists and find its street address, then respond with ONLY a single JSON object — no markdown fences, no other text — in this exact shape:
-{"name": "<corrected/canonical name>", "address": "<street address>", "category": "<one of the provided categories>", "note": "<one-line note>"}
+  const system = `You help fill in details for a personal food-travel wishlist app. Work FAST — use at most one web search, only to confirm the place and its street address. Then respond with ONLY a single JSON object — no markdown fences, no other text — in this exact shape:
+{"name": "<corrected/canonical name>", "address": "<street address>", "category": "<one of the provided categories>", "note": "<one-line note>", "lat": <decimal latitude>, "lng": <decimal longitude>, "mapsUrl": "<google maps url or empty>"}
 
 Rules:
 - "category" must be exactly one of these: ${categories.join(', ')}. Pick the closest fit.
 - "note" is a single sentence, in this house style (dash-separated hook + detail, no fluff):
 ${styleExamples}
+- "lat" and "lng" are the place's decimal coordinates as plain numbers (e.g. 21.3069, -157.8583). Give your best estimate from your own knowledge and the address — do NOT run extra searches just to find coordinates.
+- "mapsUrl": only include a Google Maps URL if one already appeared in search results you viewed; otherwise use an empty string. Never search specifically for it, and never invent one.
 - If you cannot find the place with reasonable confidence, respond with {"error": "not found"} instead of guessing.`;
 
   try {
@@ -46,7 +48,7 @@ ${styleExamples}
       model: 'claude-sonnet-5',
       max_tokens: 1024,
       system,
-      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
+      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 2 }],
       messages: [
         { role: 'user', content: `Place name: "${name}"\nDestination: ${cityLabel}` },
       ],
@@ -66,8 +68,28 @@ ${styleExamples}
       return { statusCode: 422, headers: JSON_HEADERS, body: JSON.stringify({ error: 'incomplete result from model' }) };
     }
 
-    return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(parsed) };
+    const out = {
+      name: parsed.name,
+      address: parsed.address,
+      category: parsed.category,
+      note: parsed.note || '',
+    };
+    const lat = Number(parsed.lat);
+    const lng = Number(parsed.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+      out.lat = lat;
+      out.lng = lng;
+    }
+    if (typeof parsed.mapsUrl === 'string' && /^https?:\/\//i.test(parsed.mapsUrl)) {
+      out.mapsUrl = parsed.mapsUrl;
+    }
+
+    return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(out) };
   } catch (err) {
-    return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: err.message }) };
+    const msg = err.message || 'lookup failed';
+    let code = 'error';
+    if (/credit balance|Plans & Billing|billing/i.test(msg)) code = 'no_credits';
+    else if (/rate.?limit|overloaded|\b429\b|\b529\b/i.test(msg)) code = 'busy';
+    return { statusCode: 502, headers: JSON_HEADERS, body: JSON.stringify({ error: msg, code }) };
   }
 };

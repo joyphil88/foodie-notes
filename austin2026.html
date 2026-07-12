@@ -720,6 +720,8 @@
       <select id="add-cat"></select>
       <label for="add-addr">Address</label>
       <input type="text" id="add-addr" required placeholder="e.g. 3220 Manor Rd" />
+      <label for="add-url">Google Maps link (optional)</label>
+      <input type="url" id="add-url" placeholder="Paste a Google Maps link — pins the exact spot" />
       <label for="add-note">Note</label>
       <textarea id="add-note" placeholder="One line — what to order, why it's worth it"></textarea>
       <div class="modal-error" id="add-error"></div>
@@ -814,6 +816,10 @@ function mapsLink(name, addr) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' ' + addr + ' Austin TX')}`;
 }
 
+function placeMapsLink(p) {
+  return p.url ? p.url : mapsLink(p.name, p.addr);
+}
+
 let activeFilter = 'All';
 let selectedId = null;
 let openMenuId = null;
@@ -824,7 +830,7 @@ function popupHtml(p) {
       <div class="popup-cat">${CATEGORIES[p.cat].label}</div>
       <div class="popup-name">${p.name}</div>
       <div class="popup-note">${p.note}</div>
-      <a class="popup-link" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener">${p.addr}, Austin&nbsp;TX&nbsp;→</a>
+      <a class="popup-link" href="${placeMapsLink(p)}" target="_blank" rel="noopener">${p.addr}, Austin&nbsp;TX&nbsp;→</a>
       <div class="popup-actions">
         ${p.cat === 'Hotel' ? '' : `<button class="popup-action" onclick="toggleTried('${p.id}', event)">${p.tried ? '✓ Tried' : 'Mark tried'}</button>`}
         <button class="popup-action" onclick="togglePinned('${p.id}', event)">${p.pinned ? '★ Pinned' : 'Pin'}</button>
@@ -1073,7 +1079,7 @@ function buildList() {
       <div class="place-item-body">
         <div class="place-name">${p.name}</div>
         <div class="place-note">${p.note}</div>
-        <div class="place-meta">${cat.label} &nbsp;·&nbsp; <a class="place-maps" href="${mapsLink(p.name, p.addr)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${p.addr}&nbsp;→</a></div>
+        <div class="place-meta">${cat.label} &nbsp;·&nbsp; <a class="place-maps" href="${placeMapsLink(p)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${p.addr}&nbsp;→</a></div>
       </div>
       <button class="pin-toggle${p.pinned ? ' pinned' : ''}" title="${p.pinned ? 'Unpin' : 'Pin'}" onclick="togglePinned('${p.id}', event)">${PIN_ICON_SVG}</button>
       <div class="item-menu-wrap">
@@ -1204,6 +1210,19 @@ async function deletePlace(id, ev) {
   buildList();
 }
 
+let knownCoords = null;
+
+function coordsFromMapsUrl(url) {
+  if (!url) return null;
+  let m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  m = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  m = url.match(/[?&](?:q|ll|center|destination|daddr)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  return null;
+}
+
 async function geocodeAddress(addr) {
   const query = `${addr}, ${CITY_LABEL}`;
   const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(query)}`;
@@ -1247,6 +1266,12 @@ function categoryKeyForLabel(label) {
 
 const autofillBtn = document.getElementById('autofill-btn');
 
+document.getElementById('add-addr').addEventListener('input', () => { knownCoords = null; });
+document.getElementById('add-url').addEventListener('input', (e) => {
+  const c = coordsFromMapsUrl(e.target.value.trim());
+  if (c) knownCoords = c;
+});
+
 async function autoFillFromName() {
   const name = document.getElementById('add-name').value.trim();
   if (!name) { document.getElementById('add-name').focus(); return; }
@@ -1264,18 +1289,28 @@ async function autoFillFromName() {
       body: JSON.stringify({ name, cityLabel: CITY_LABEL, categories, exampleNotes }),
     });
     if (res.status === 401) throw new Error('unauthorized');
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'lookup failed');
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 422) throw new Error('notfound');
+    if (!res.ok) throw new Error(data.code === 'no_credits' ? 'no_credits' : data.code === 'busy' ? 'busy' : 'unavailable');
 
     document.getElementById('add-name').value = data.name;
     document.getElementById('add-addr').value = data.address;
+    document.getElementById('add-url').value = data.mapsUrl || '';
     document.getElementById('add-note').value = data.note || '';
     const key = categoryKeyForLabel(data.category);
     if (key) addCatSelect.value = key;
+    knownCoords = (Number.isFinite(data.lat) && Number.isFinite(data.lng))
+      ? { lat: data.lat, lng: data.lng }
+      : coordsFromMapsUrl(data.mapsUrl);
   } catch (err) {
-    addError.textContent = err.message === 'unauthorized'
-      ? 'Wrong passcode — try again.'
-      : `Couldn't find "${name}" — fill in the details manually.`;
+    const messages = {
+      unauthorized: 'Wrong passcode — try again.',
+      notfound: `Couldn't find "${name}" — add the details manually.`,
+      no_credits: 'AI lookup needs Anthropic credits — add the details manually for now.',
+      busy: 'AI is busy right now — try again shortly, or add the details manually.',
+      unavailable: 'AI lookup is unavailable right now — add the details manually.',
+    };
+    addError.textContent = messages[err.message] || messages.unavailable;
     addError.classList.add('show');
   } finally {
     autofillBtn.disabled = false;
@@ -1301,6 +1336,7 @@ let editingOriginalAddr = '';
 function openAddModal() {
   editingPlaceId = null;
   addForm.reset();
+  knownCoords = null;
   addError.classList.remove('show');
   addModalTitle.textContent = 'Add a place';
   addSubmitBtn.textContent = 'Add place';
@@ -1320,7 +1356,9 @@ function openEditModal(id, ev) {
   populateCategorySelect();
   addCatSelect.value = p.cat;
   document.getElementById('add-addr').value = p.addr;
+  document.getElementById('add-url').value = p.url || '';
   document.getElementById('add-note').value = p.note;
+  knownCoords = { lat: p.lat, lng: p.lng };
   addModalTitle.textContent = 'Edit place';
   addSubmitBtn.textContent = 'Save changes';
   addModalOverlay.classList.add('open');
@@ -1340,19 +1378,19 @@ addForm.addEventListener('submit', async (e) => {
   const name = document.getElementById('add-name').value.trim();
   const cat = addCatSelect.value;
   const addr = document.getElementById('add-addr').value.trim();
+  const url = document.getElementById('add-url').value.trim();
   const note = document.getElementById('add-note').value.trim();
   if (!name || !addr) return;
 
   const submitLabel = editingPlaceId ? 'Save changes' : 'Add place';
-  let coords = null;
-  const addrChanged = !editingPlaceId || addr !== editingOriginalAddr;
-  if (addrChanged) {
+  let coords = knownCoords || coordsFromMapsUrl(url);
+  if (!coords) {
     addSubmitBtn.disabled = true;
     addSubmitBtn.textContent = 'Locating…';
     try {
       coords = await geocodeAddress(addr);
     } catch (err) {
-      addError.textContent = "Couldn't find that address — try adding more detail.";
+      addError.textContent = "Couldn't place this pin — paste a Google Maps link, or refine the address.";
       addError.classList.add('show');
       addSubmitBtn.disabled = false;
       addSubmitBtn.textContent = submitLabel;
@@ -1366,7 +1404,7 @@ addForm.addEventListener('submit', async (e) => {
   if (editingPlaceId) {
     const id = editingPlaceId;
     const p = PLACES.find(pp => pp.id === id);
-    const fields = { name, cat, addr, note };
+    const fields = { name, cat, addr, note, url };
     if (coords) { fields.lat = coords.lat; fields.lng = coords.lng; }
     try {
       const res = await authedFetch(API, {
@@ -1399,7 +1437,7 @@ addForm.addEventListener('submit', async (e) => {
     const res = await authedFetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ city: CITY, place: { name, cat, addr, note, lat: coords.lat, lng: coords.lng } }),
+      body: JSON.stringify({ city: CITY, place: { name, cat, addr, note, url, lat: coords.lat, lng: coords.lng } }),
     });
     if (res.status === 401) throw new Error('unauthorized');
     if (!res.ok) throw new Error('Save failed');
