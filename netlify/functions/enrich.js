@@ -32,20 +32,20 @@ exports.handler = async (event) => {
   const styleExamples = (exampleNotes || []).slice(0, 3).map((n) => `- "${n}"`).join('\n')
     || '- "No-frills neighborhood spot — known for its brisket sandwich."';
 
-  const system = `You help fill in details for a personal food-travel wishlist app. Work FAST — use at most one web search, only to confirm the place and its street address. Then respond with ONLY a single JSON object — no markdown fences, no other text — in this exact shape:
-{"name": "<corrected/canonical name>", "address": "<street address>", "category": "<one of the provided categories>", "note": "<one-line note>", "lat": <decimal latitude>, "lng": <decimal longitude>, "mapsUrl": "<google maps url or empty>"}
+  const system = `You help fill in details for a personal food-travel wishlist app. Work FAST and cheap: FIRST try to answer from your OWN knowledge. You have a web_search tool, but ONLY use it if you don't recognize the place or aren't reasonably sure of its street address — for well-known places, answer directly WITHOUT searching. Respond with ONLY a single JSON object — no markdown fences, no other text — in this exact shape:
+{"name": "<corrected/canonical name>", "address": "<street address>", "category": "<one of the provided categories>", "note": "<one-line note>", "lat": <decimal latitude>, "lng": <decimal longitude>}
 
 Rules:
 - "category": a short, specific type for this place. ${cats.length ? `Prefer one of these existing categories if it genuinely fits: ${cats.join(', ')}. If none fit well, propose` : 'Propose'} a specific category of your own (e.g. "Seafood", "BBQ", "Ramen", "Coffee", "Tacos", "Bakery", "Wine Bar", "Pizza"). NEVER use a vague catch-all like "Food", "Restaurant", or "Dining" — always pick something specific. Use "Hotel" only for actual lodging.
+- "address": the best street address for this place. If you only know the neighborhood, give "<neighborhood>, <city>".
 - "note" must be VERY short — a single tight phrase that fits on one line (aim for 4–8 words, hard max ~10). No full sentences, no fluff. Name the one thing worth ordering or the one reason to go. Examples of the right length: "Brisket sandwich, smoked jalapeño sausage.", "Order the omakase nigiri.", "Chocolate haupia cream pie."
-- "lat" and "lng" are the place's decimal coordinates as plain numbers (e.g. 21.3069, -157.8583). Give your best estimate from your own knowledge and the address — do NOT run extra searches just to find coordinates.
-- "mapsUrl": only include a Google Maps URL if one already appeared in search results you viewed; otherwise use an empty string. Never search specifically for it, and never invent one.
-- If you cannot find the place with reasonable confidence, respond with {"error": "not found"} instead of guessing.`;
+- "lat" and "lng" are the place's decimal coordinates as plain numbers (e.g. 21.3069, -157.8583). Give your best estimate from the address; do NOT search just to refine coordinates.
+- If you still can't identify the place with reasonable confidence (even after a search), respond with {"error": "not found"} instead of guessing an address.`;
 
   try {
     const client = new Anthropic();
     const response = await client.messages.create({
-      model: 'claude-sonnet-5',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       system,
       tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 1 }],

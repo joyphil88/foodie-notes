@@ -97,10 +97,10 @@
     }
 
     .arrow {
-      font-size: 1rem;
+      font-size: .8em;
       color: var(--muted);
-      flex-shrink: 0;
-      margin-left: 16px;
+      margin-left: 8px;
+      vertical-align: middle;
     }
 
     .empty-trips {
@@ -221,7 +221,7 @@
     .modal input {
       width: 100%;
       font-family: 'Inter', sans-serif;
-      font-size: .85rem;
+      font-size: 16px; /* 16px stops iOS Safari auto-zooming on focus */
       padding: 9px 11px;
       border: 1px solid var(--border);
       border-radius: 4px;
@@ -280,7 +280,7 @@
     .dialog { background: var(--surface); border-radius: 12px; padding: 24px; width: 100%; max-width: 360px; box-shadow: 0 12px 48px rgba(0,0,0,.22); }
     .dialog h3 { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 600; margin-bottom: 6px; }
     .dialog p { font-size: .82rem; color: var(--muted); margin-bottom: 16px; line-height: 1.45; }
-    .dialog input { width: 100%; font-family: 'Inter', sans-serif; font-size: .9rem; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); margin-bottom: 16px; }
+    .dialog input { width: 100%; font-family: 'Inter', sans-serif; font-size: 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); margin-bottom: 16px; }
     .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
     .dialog-actions button { font-family: 'Inter', sans-serif; font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 9px 16px; border-radius: 20px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
     .dialog-actions button.primary { background: var(--text); border-color: var(--text); color: #fff; }
@@ -442,10 +442,9 @@ function renderTrips() {
     li.innerHTML = `
       <a href="trip.html?city=${encodeURIComponent(trip.slug)}">
         <div>
-          <div class="trip-name">${trip.name}</div>
+          <div class="trip-name">${trip.name}<span class="arrow">→</span></div>
           <div class="trip-meta">${trip.subtitle || ''}</div>
         </div>
-        <span class="arrow">→</span>
       </a>
       <div class="trip-menu-wrap">
         <button class="trip-menu-btn" title="More" onclick="toggleTripMenu('${trip.slug}', event)">⋯</button>
