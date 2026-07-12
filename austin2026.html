@@ -680,6 +680,35 @@
     }
 
     .modal-error.show { display: block; }
+    /* ── Toasts ── */
+    #toast-wrap { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 3000; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+    .toast { background: var(--text); color: #fff; font-size: .78rem; font-weight: 500; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.25); opacity: 0; transform: translateY(8px); transition: opacity .2s, transform .2s; max-width: 320px; text-align: center; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.danger { background: #c0392b; }
+
+    /* ── Dialog (prompt / confirm / passcode) ── */
+    .dialog-overlay { position: fixed; inset: 0; background: rgba(26,25,23,.45); display: none; align-items: center; justify-content: center; z-index: 2600; padding: 20px; }
+    .dialog-overlay.open { display: flex; }
+    .dialog { background: var(--surface); border-radius: 12px; padding: 24px; width: 100%; max-width: 360px; box-shadow: 0 12px 48px rgba(0,0,0,.22); }
+    .dialog h3 { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 600; margin-bottom: 6px; }
+    .dialog p { font-size: .82rem; color: var(--muted); margin-bottom: 16px; line-height: 1.45; }
+    .dialog input { width: 100%; font-family: 'Inter', sans-serif; font-size: .9rem; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); margin-bottom: 16px; }
+    .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .dialog-actions button { font-family: 'Inter', sans-serif; font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 9px 16px; border-radius: 20px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+    .dialog-actions button.primary { background: var(--text); border-color: var(--text); color: #fff; }
+    .dialog-actions button.danger { background: #c0392b; border-color: #c0392b; color: #fff; }
+
+    /* ── Custom select ── */
+    .cselect { position: relative; }
+    .cselect-btn { width: 100%; text-align: left; font-family: 'Inter', sans-serif; font-size: .85rem; padding: 9px 32px 9px 11px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); cursor: pointer; position: relative; }
+    .cselect-btn::after { content: ''; position: absolute; right: 12px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23888580' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+    .cselect-list { display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.16); max-height: 240px; overflow-y: auto; z-index: 30; padding: 4px; }
+    .cselect.open .cselect-list { display: block; }
+    .cselect-opt { padding: 9px 11px; font-size: .85rem; border-radius: 6px; cursor: pointer; }
+    .cselect-opt:hover { background: var(--light); }
+    .cselect-opt.selected { background: var(--light); font-weight: 600; }
+    .cselect-opt.new { color: var(--muted); border-top: 1px solid var(--border); margin-top: 4px; border-radius: 0; }
+
   </style>
 </head>
 <body>
@@ -731,7 +760,7 @@
         <button type="button" class="autofill-btn" id="autofill-btn" onclick="autoFillFromName()">✨ Auto-fill</button>
       </div>
       <label for="add-cat">Category</label>
-      <select id="add-cat"></select>
+      <div id="add-cat-select" class="cselect"></div>
       <label for="add-addr">Address</label>
       <input type="text" id="add-addr" required placeholder="e.g. 3220 Manor Rd" />
       <label for="add-url">Google Maps link (optional)</label>
@@ -852,6 +881,63 @@ function enterCategoryEdit() {
 }
 document.addEventListener('click', closeHeaderMenu);
 
+// ── Toast + dialog UI kit ───────────────────────────────────────────
+function showToast(msg, kind) {
+  let wrap = document.getElementById('toast-wrap');
+  if (!wrap) { wrap = document.createElement('div'); wrap.id = 'toast-wrap'; document.body.appendChild(wrap); }
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind ? ' ' + kind : '');
+  el.textContent = msg;
+  wrap.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 250); }, 3400);
+}
+
+function uiDialog(opts) {
+  return new Promise((resolve) => {
+    const isInput = !!opts.input;
+    const overlay = document.createElement('div');
+    overlay.className = 'dialog-overlay open';
+    overlay.innerHTML =
+      '<div class="dialog">' +
+        '<h3></h3>' +
+        (opts.message ? '<p></p>' : '') +
+        (isInput ? '<input />' : '') +
+        '<div class="dialog-actions">' +
+          '<button class="cancel"></button>' +
+          '<button class="primary"></button>' +
+        '</div>' +
+      '</div>';
+    overlay.querySelector('h3').textContent = opts.title || '';
+    if (opts.message) overlay.querySelector('p').textContent = opts.message;
+    const inputEl = overlay.querySelector('input');
+    if (inputEl) { inputEl.type = opts.inputType || 'text'; inputEl.placeholder = opts.placeholder || ''; inputEl.value = opts.value || ''; }
+    const cancelBtn = overlay.querySelector('.cancel');
+    const okBtn = overlay.querySelector('.primary');
+    cancelBtn.textContent = opts.cancelText || 'Cancel';
+    okBtn.textContent = opts.confirmText || 'OK';
+    if (opts.danger) okBtn.classList.add('danger');
+    document.body.appendChild(overlay);
+    if (inputEl) setTimeout(() => inputEl.focus(), 30);
+    const done = (val) => { overlay.remove(); resolve(val); };
+    cancelBtn.onclick = () => done(isInput ? null : false);
+    okBtn.onclick = () => done(isInput ? ((inputEl.value || '').trim() || null) : true);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) done(isInput ? null : false); });
+    if (inputEl) inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); done((inputEl.value || '').trim() || null); }
+      if (e.key === 'Escape') done(null);
+    });
+  });
+}
+
+function askText(title, placeholder, opts) {
+  return uiDialog(Object.assign({ title, placeholder, input: true, confirmText: 'Save' }, opts || {}));
+}
+function askConfirm(title, message, opts) {
+  return uiDialog(Object.assign({ title, message, confirmText: 'Confirm' }, opts || {}));
+}
+
+
 let activeFilter = 'All';
 let selectedId = null;
 let openMenuId = null;
@@ -971,7 +1057,7 @@ function buildFilters() {
     addChip.className = 'chip chip-add';
     addChip.textContent = '+ Add category';
     addChip.onclick = async () => {
-      const label = prompt('New category name:');
+      const label = await askText('New category', 'e.g. Ramen');
       if (!label || !label.trim()) return;
       await createCategory(label);
       buildFilters();
@@ -1029,7 +1115,7 @@ async function createCategory(label) {
     if (!res.ok) throw new Error('save failed');
   } catch (e) {
     console.error('Failed to save category', e);
-    alert('Could not save the new category — check your passcode and try again.');
+    showToast('Could not save the new category — check your passcode.', 'danger');
     return null;
   }
   CATEGORIES[key] = { color, label: trimmed };
@@ -1038,16 +1124,16 @@ async function createCategory(label) {
 
 async function deleteCategory(key) {
   if (PLACES.some(p => p.cat === key)) {
-    alert(`Can't delete "${CATEGORIES[key].label}" — some places still use it. Move or remove those first.`);
+    showToast(`Can't delete "${CATEGORIES[key].label}" — move its places first.`, 'danger');
     return;
   }
-  if (!confirm(`Delete category "${CATEGORIES[key].label}"?`)) return;
+  if (!(await askConfirm('Delete category?', `Delete "${CATEGORIES[key].label}"? This can't be undone.`, { danger: true, confirmText: 'Delete' }))) return;
   try {
     const res = await authedFetch(`${CATEGORIES_API}?city=${CITY}&key=${encodeURIComponent(key)}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('delete failed');
   } catch (e) {
     console.error('Failed to delete category', e);
-    alert('Could not delete this category — check your passcode and try again.');
+    showToast('Could not delete this category — check your passcode.', 'danger');
     return;
   }
   delete CATEGORIES[key];
@@ -1069,7 +1155,7 @@ async function renameCategory(key, newLabel) {
     if (!res.ok) throw new Error('rename failed');
   } catch (e) {
     console.error('Failed to rename category', e);
-    alert('Could not rename this category — check your passcode and try again.');
+    showToast('Could not rename this category — check your passcode.', 'danger');
     buildFilters();
     return;
   }
@@ -1171,7 +1257,7 @@ async function authedFetch(url, options = {}) {
   if (stored) headers['x-foodie-passcode'] = stored;
   let res = await fetch(url, { ...options, headers });
   if (res.status === 401) {
-    const code = prompt('Enter passcode to make changes:');
+    const code = await askText('Enter passcode', 'Passcode', { inputType: 'password', confirmText: 'Unlock' });
     if (!code) return res;
     localStorage.setItem('foodiePasscode', code);
     res = await fetch(url, { ...options, headers: { ...headers, 'x-foodie-passcode': code } });
@@ -1226,13 +1312,13 @@ async function togglePinned(id, ev) {
 
 async function deletePlace(id, ev) {
   if (ev) ev.stopPropagation();
-  if (!confirm('Remove this place from your list?')) return;
+  if (!(await askConfirm('Remove place?', 'Remove this place from your list?', { danger: true, confirmText: 'Remove' }))) return;
   try {
     const res = await authedFetch(`${API}?city=${CITY}&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('delete failed');
   } catch (e) {
     console.error('Failed to delete place', e);
-    alert('Could not remove this place — check your passcode and try again.');
+    showToast('Could not remove this place — check your passcode.', 'danger');
     return;
   }
   const marker = markers.get(id);
@@ -1268,24 +1354,50 @@ async function geocodeAddress(addr) {
 
 const addModalOverlay = document.getElementById('add-modal-overlay');
 const addForm = document.getElementById('add-form');
-const addCatSelect = document.getElementById('add-cat');
+const catSelectEl = document.getElementById('add-cat-select');
+let selectedCatKey = null;
 const addError = document.getElementById('add-error');
 const addSubmitBtn = document.getElementById('add-submit');
 
-function populateCategorySelect() {
-  const prevValue = addCatSelect.value;
-  addCatSelect.innerHTML = '';
-  Object.entries(CATEGORIES).forEach(([key, cat]) => {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = cat.label;
-    addCatSelect.appendChild(opt);
+function renderCatSelect(open) {
+  const label = selectedCatKey && CATEGORIES[selectedCatKey] ? CATEGORIES[selectedCatKey].label : 'Select…';
+  const opts = Object.entries(CATEGORIES).map(([key, cat]) =>
+    `<div class="cselect-opt${key === selectedCatKey ? ' selected' : ''}" data-key="${key}">${cat.label}</div>`
+  ).join('');
+  catSelectEl.className = 'cselect' + (open ? ' open' : '');
+  catSelectEl.innerHTML =
+    `<button type="button" class="cselect-btn">${label}</button>` +
+    `<div class="cselect-list">${opts}<div class="cselect-opt new" data-key="__new__">+ New category…</div></div>`;
+  catSelectEl.querySelector('.cselect-btn').onclick = (e) => {
+    e.stopPropagation();
+    renderCatSelect(!catSelectEl.classList.contains('open'));
+  };
+  catSelectEl.querySelectorAll('.cselect-opt').forEach((opt) => {
+    opt.onclick = async (e) => {
+      e.stopPropagation();
+      const key = opt.dataset.key;
+      if (key === '__new__') {
+        const label = await askText('New category', 'e.g. Ramen');
+        if (!label) { renderCatSelect(false); return; }
+        const newKey = await createCategory(label);
+        if (newKey) { buildFilters(); buildMapFilterChips(); setCatValue(newKey); }
+        else renderCatSelect(false);
+        return;
+      }
+      setCatValue(key);
+    };
   });
-  const newOpt = document.createElement('option');
-  newOpt.value = '__new__';
-  newOpt.textContent = '+ New category…';
-  addCatSelect.appendChild(newOpt);
-  if (CATEGORIES[prevValue]) addCatSelect.value = prevValue;
+}
+
+function getCatValue() { return selectedCatKey; }
+function setCatValue(key) {
+  if (CATEGORIES[key]) selectedCatKey = key;
+  renderCatSelect(false);
+}
+
+function populateCategorySelect() {
+  if (!selectedCatKey || !CATEGORIES[selectedCatKey]) selectedCatKey = Object.keys(CATEGORIES)[0] || null;
+  renderCatSelect(false);
 }
 
 function categoryKeyForLabel(label) {
@@ -1335,7 +1447,7 @@ async function autoFillFromName() {
       key = await createCategory(data.category);
       if (key) { buildFilters(); buildMapFilterChips(); populateCategorySelect(); }
     }
-    if (key) addCatSelect.value = key;
+    if (key) setCatValue(key);
     knownCoords = (Number.isFinite(data.lat) && Number.isFinite(data.lng))
       ? { lat: data.lat, lng: data.lng }
       : coordsFromMapsUrl(data.mapsUrl);
@@ -1355,16 +1467,7 @@ async function autoFillFromName() {
   }
 }
 
-addCatSelect.addEventListener('change', async () => {
-  if (addCatSelect.value !== '__new__') return;
-  const label = prompt('New category name:');
-  if (!label || !label.trim()) { addCatSelect.value = Object.keys(CATEGORIES)[0]; return; }
-  const key = await createCategory(label);
-  populateCategorySelect();
-  buildFilters();
-  buildMapFilterChips();
-  addCatSelect.value = key || Object.keys(CATEGORIES)[0];
-});
+document.addEventListener('click', () => { if (catSelectEl.classList.contains('open')) renderCatSelect(false); });
 
 const addModalTitle = document.getElementById('add-modal-title');
 let editingPlaceId = null;
@@ -1374,6 +1477,8 @@ function openAddModal() {
   editingPlaceId = null;
   addForm.reset();
   knownCoords = null;
+  selectedCatKey = Object.keys(CATEGORIES)[0] || null;
+  populateCategorySelect();
   addError.classList.remove('show');
   addModalTitle.textContent = 'Add a place';
   addSubmitBtn.textContent = 'Add place';
@@ -1391,7 +1496,7 @@ function openEditModal(id, ev) {
   addError.classList.remove('show');
   document.getElementById('add-name').value = p.name;
   populateCategorySelect();
-  addCatSelect.value = p.cat;
+  setCatValue(p.cat);
   document.getElementById('add-addr').value = p.addr;
   document.getElementById('add-url').value = p.url || '';
   document.getElementById('add-note').value = p.note;
@@ -1413,7 +1518,7 @@ addForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   addError.classList.remove('show');
   const name = document.getElementById('add-name').value.trim();
-  const cat = addCatSelect.value;
+  const cat = getCatValue();
   const addr = document.getElementById('add-addr').value.trim();
   const url = document.getElementById('add-url').value.trim();
   const note = document.getElementById('add-note').value.trim();
