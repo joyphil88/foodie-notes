@@ -1,20 +1,19 @@
-const { getStore, connectLambda } = require('@netlify/blobs');
+const { openStore, mutate } = require('./_store');
 
-const emptyState = () => ({ custom: [], triedIds: [], deletedIds: [], categories: emptyCategories() });
 const emptyCategories = () => ({ custom: [], labels: {}, deletedKeys: [] });
+const emptyState = () => ({ custom: [], triedIds: [], pinnedIds: [], deletedIds: [], edits: {}, categories: emptyCategories() });
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
-function normalize(data) {
+function cats(data) {
   data.categories = data.categories || emptyCategories();
   data.categories.custom = data.categories.custom || [];
   data.categories.labels = data.categories.labels || {};
   data.categories.deletedKeys = data.categories.deletedKeys || [];
-  return data;
+  return data.categories;
 }
 
 exports.handler = async (event) => {
-  connectLambda(event);
-  const store = getStore('foodie-notes');
+  const store = openStore(event);
   const method = event.httpMethod;
 
   const requiredPasscode = process.env.FOODIE_PASSCODE;
@@ -28,14 +27,19 @@ exports.handler = async (event) => {
       if (!city || !key || !label) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'city, key, and label required' }) };
       }
-      const data = normalize((await store.get(city, { type: 'json' })) || emptyState());
-      if (data.categories.custom.some((c) => c.key === key)) {
-        return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: 'category already exists' }) };
+      try {
+        const saved = await mutate(store, city, emptyState, (data) => {
+          const c = cats(data);
+          if (c.custom.some((x) => x.key === key)) { const e = new Error('exists'); e.code = 'exists'; throw e; }
+          const s = { key, label, color: color || '#7f8c8d' };
+          c.custom.push(s);
+          return s;
+        });
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(saved) };
+      } catch (e) {
+        if (e.code === 'exists') return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: 'category already exists' }) };
+        throw e;
       }
-      const saved = { key, label, color: color || '#7f8c8d' };
-      data.categories.custom.push(saved);
-      await store.setJSON(city, data);
-      return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(saved) };
     }
 
     if (method === 'PATCH') {
@@ -43,11 +47,12 @@ exports.handler = async (event) => {
       if (!city || !key || !label) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'city, key, and label required' }) };
       }
-      const data = normalize((await store.get(city, { type: 'json' })) || emptyState());
-      data.categories.labels[key] = label;
-      const custom = data.categories.custom.find((c) => c.key === key);
-      if (custom) custom.label = label;
-      await store.setJSON(city, data);
+      await mutate(store, city, emptyState, (data) => {
+        const c = cats(data);
+        c.labels[key] = label;
+        const custom = c.custom.find((x) => x.key === key);
+        if (custom) custom.label = label;
+      });
       return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
     }
 
@@ -55,15 +60,16 @@ exports.handler = async (event) => {
       const city = event.queryStringParameters?.city;
       const key = event.queryStringParameters?.key;
       if (!city || !key) return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'city and key required' }) };
-      const data = normalize((await store.get(city, { type: 'json' })) || emptyState());
-      const idx = data.categories.custom.findIndex((c) => c.key === key);
-      if (idx !== -1) {
-        data.categories.custom.splice(idx, 1);
-      } else if (!data.categories.deletedKeys.includes(key)) {
-        data.categories.deletedKeys.push(key);
-      }
-      delete data.categories.labels[key];
-      await store.setJSON(city, data);
+      await mutate(store, city, emptyState, (data) => {
+        const c = cats(data);
+        const idx = c.custom.findIndex((x) => x.key === key);
+        if (idx !== -1) {
+          c.custom.splice(idx, 1);
+        } else if (!c.deletedKeys.includes(key)) {
+          c.deletedKeys.push(key);
+        }
+        delete c.labels[key];
+      });
       return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
     }
 

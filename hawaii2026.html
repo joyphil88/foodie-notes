@@ -265,6 +265,8 @@
       display: none;
     }
 
+    #map-filter-drawer { display: none; }
+
     @media (max-width: 680px) {
       #app { flex-direction: column; height: 100dvh; }
 
@@ -517,7 +519,8 @@
     /* ── Popup actions ── */
     .popup-actions {
       display: flex;
-      gap: 12px;
+      flex-wrap: nowrap;
+      gap: 10px;
       margin-top: 10px;
       padding-top: 10px;
       border-top: 1px solid var(--border);
@@ -970,7 +973,7 @@ function popupHtml(p) {
       <div class="popup-note">${p.note}</div>
       <a class="popup-link" href="${placeMapsLink(p)}" target="_blank" rel="noopener">${shortAddr(p.addr)}&nbsp;→</a>
       <div class="popup-actions">
-        ${p.cat === 'Hotel' ? '' : `<button class="popup-action" onclick="toggleTried('${p.id}', event)">${p.tried ? '✓ Tried' : 'Mark tried'}</button>`}
+        ${p.cat === 'Hotel' ? '' : `<button class="popup-action" onclick="toggleTried('${p.id}', event)">${p.tried ? '✓ Tried' : 'Tried'}</button>`}
         <button class="popup-action" onclick="togglePinned('${p.id}', event)">${p.pinned ? '★ Pinned' : 'Pin'}</button>
         <button class="popup-action" onclick="openEditModal('${p.id}', event)">Edit</button>
         <button class="popup-action danger" onclick="deletePlace('${p.id}', event)">Remove</button>
@@ -1048,6 +1051,12 @@ const countEl = document.getElementById('count-label');
 
 let categoriesEditMode = false;
 
+function sortedCategoryEntries(includeHotel) {
+  return Object.entries(CATEGORIES)
+    .filter(([key]) => includeHotel || key !== 'Hotel')
+    .sort((a, b) => a[1].label.localeCompare(b[1].label));
+}
+
 function buildFilters() {
   filtersEl.innerHTML = '';
   const all = document.createElement('button');
@@ -1056,7 +1065,7 @@ function buildFilters() {
   all.onclick = () => setFilter('All');
   filtersEl.appendChild(all);
 
-  Object.entries(CATEGORIES).forEach(([key, cat]) => {
+  sortedCategoryEntries(false).forEach(([key, cat]) => {
     const chip = document.createElement('button');
     chip.className = 'chip' + (activeFilter === key ? ' active' : '') + (categoriesEditMode ? ' editing' : '');
     if (categoriesEditMode) {
@@ -1183,6 +1192,7 @@ async function renameCategory(key, newLabel) {
   buildFilters();
   buildMapFilterChips();
   populateCategorySelect();
+  buildList();
 }
 
 function setFilter(key) {
@@ -1196,9 +1206,11 @@ function setFilter(key) {
 function buildList() {
   listEl.innerHTML = '';
   const visible = PLACES.filter(p => activeFilter === 'All' || p.cat === activeFilter);
+  const tryTotal = PLACES.filter(p => p.cat !== 'Hotel').length;
+  const tryVisible = visible.filter(p => p.cat !== 'Hotel').length;
   countEl.textContent = activeFilter === 'All'
-    ? `${PLACES.length} places to try`
-    : `${visible.length} of ${PLACES.length} places`;
+    ? `${tryTotal} places to try`
+    : `${tryVisible} of ${tryTotal} places`;
 
   const sorted = [...visible].sort((a, b) => {
     const aHotel = a.cat === 'Hotel', bHotel = b.cat === 'Hotel';
@@ -1381,7 +1393,7 @@ const addSubmitBtn = document.getElementById('add-submit');
 
 function renderCatSelect(open) {
   const label = selectedCatKey && CATEGORIES[selectedCatKey] ? CATEGORIES[selectedCatKey].label : 'Select…';
-  const opts = Object.entries(CATEGORIES).map(([key, cat]) =>
+  const opts = sortedCategoryEntries(true).map(([key, cat]) =>
     `<div class="cselect-opt${key === selectedCatKey ? ' selected' : ''}" data-key="${key}">${cat.label}</div>`
   ).join('');
   catSelectEl.className = 'cselect' + (open ? ' open' : '');
@@ -1704,7 +1716,7 @@ function buildMapFilterChips() {
   all.textContent = 'All';
   all.onclick = () => { setFilter('All'); updateMapFilterHandle(); };
   el.appendChild(all);
-  Object.entries(CATEGORIES).forEach(([key, cat]) => {
+  sortedCategoryEntries(false).forEach(([key, cat]) => {
     const chip = document.createElement('button');
     chip.className = 'chip' + (activeFilter === key ? ' active' : '');
     chip.textContent = cat.label;
