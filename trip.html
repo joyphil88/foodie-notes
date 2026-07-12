@@ -1368,6 +1368,35 @@ async function geocodeAddress(addr) {
   return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) };
 }
 
+function distKm(a, b) {
+  const R = 6371, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+// The AI returns a reliable address but its memorized coords can be off by a mile+
+// for obscure spots. OSM usually has the exact business by name, so geocode
+// "name, <locality from address>" and prefer it — but only if it's near the AI's
+// estimate, so a same-named place elsewhere can't hijack the pin.
+async function refineCoordsByName(name, addr, fallback) {
+  const locality = (addr || '').split(',').slice(1).join(',').trim();
+  const query = locality ? `${name}, ${locality}` : (CITY_LABEL ? `${name}, ${CITY_LABEL}` : name);
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url);
+    if (!res.ok) return fallback;
+    const results = await res.json();
+    if (!results.length) return fallback;
+    const geo = { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) };
+    if (!Number.isFinite(geo.lat) || !Number.isFinite(geo.lng)) return fallback;
+    if (!fallback || distKm(geo, fallback) < 30) return geo;
+    return fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
 const addModalOverlay = document.getElementById('add-modal-overlay');
 const addForm = document.getElementById('add-form');
 const catSelectEl = document.getElementById('add-cat-select');
@@ -1483,9 +1512,10 @@ async function autoFillFromName() {
     }
     if (key) setCatValue(key);
     const cat = key || Object.keys(CATEGORIES)[0];
-    const coords = (Number.isFinite(data.lat) && Number.isFinite(data.lng))
+    let coords = (Number.isFinite(data.lat) && Number.isFinite(data.lng))
       ? { lat: data.lat, lng: data.lng }
       : coordsFromMapsUrl(data.mapsUrl);
+    coords = await refineCoordsByName(data.name, data.address, coords);
     knownCoords = coords;
 
     if (coords) {
