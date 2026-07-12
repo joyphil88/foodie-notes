@@ -274,6 +274,10 @@
 
     #map-filter-drawer { display: none; }
 
+    /* Prevent iOS double-tap-to-zoom on tap controls — in map view a stray double-tap
+       zoomed the whole page and pushed the fixed List button off-screen (trapped). */
+    button, .chip, #mobile-toggle, #map-filter-handle, #map-filter-chips { touch-action: manipulation; }
+
     @media (max-width: 680px) {
       #app { flex-direction: column; height: 100dvh; }
 
