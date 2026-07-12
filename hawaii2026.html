@@ -1008,11 +1008,13 @@ function addMarkerFor(p) {
   return marker;
 }
 
+let lastStateSig = null;
 async function loadRemoteState() {
   try {
-    const res = await fetch(`${API}?city=${CITY}`);
+    const res = await fetch(`${API}?city=${CITY}&_=${Date.now()}`);
     if (!res.ok) return;
     const data = await res.json();
+    lastStateSig = JSON.stringify(data);
     const deletedIds = new Set(data.deletedIds || []);
     const triedIds = new Set(data.triedIds || []);
     const pinnedIds = new Set(data.pinnedIds || []);
@@ -1747,6 +1749,19 @@ async function init() {
   buildList();
   buildMapFilterChips();
 }
+let lastHiddenAt = 0;
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden) { lastHiddenAt = Date.now(); return; }
+  if (Date.now() - lastHiddenAt < 4000) return;
+  const modal = document.getElementById('add-modal-overlay');
+  if (modal && modal.classList.contains('open')) return;
+  try {
+    const res = await fetch(`${API}?city=${CITY}&_=${Date.now()}`);
+    if (!res.ok) return;
+    const fresh = JSON.stringify(await res.json());
+    if (lastStateSig && fresh !== lastStateSig) location.reload();
+  } catch (e) { /* ignore */ }
+});
 init();
 </script>
 </body>
