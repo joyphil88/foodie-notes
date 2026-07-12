@@ -791,10 +791,9 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const CATEGORIES = {
-  Hotel: { color: '#1a1917', label: 'Hotel' },
-};
+const CATEGORIES = {};
 
 const PLACES = [];
 
@@ -804,9 +803,10 @@ function slugify(s) {
 
 const CITY = new URLSearchParams(location.search).get('city') || '';
 let CITY_LABEL = '';
-const API = '/.netlify/functions/places';
-const CATEGORIES_API = '/.netlify/functions/categories';
-const TRIPS_API = '/.netlify/functions/trips';
+const SUPABASE_URL = 'https://almchnjiepfqqgzvqnkb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_GTmDaMUBXuofMxjo2j9A_w_8oSf77Ft';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const DB_API = '/.netlify/functions/db';
 const ENRICH_API = '/.netlify/functions/enrich';
 const CATEGORY_PALETTE = ['#c0392b', '#8e44ad', '#16a085', '#e67e22', '#2980b9', '#27ae60', '#7f8c8d', '#c0960c', '#2c3e50', '#8e5e3d'];
 const HOTEL_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>`;
@@ -970,39 +970,23 @@ function addMarkerFor(p) {
   return marker;
 }
 
-let lastStateSig = null;
 async function loadRemoteState() {
   try {
-    const res = await fetch(`${API}?city=${CITY}&_=${Date.now()}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    lastStateSig = JSON.stringify(data);
-    const deletedIds = new Set(data.deletedIds || []);
-    const triedIds = new Set(data.triedIds || []);
-    const pinnedIds = new Set(data.pinnedIds || []);
-    const edits = data.edits || {};
-    for (let i = PLACES.length - 1; i >= 0; i--) {
-      if (deletedIds.has(PLACES[i].id)) PLACES.splice(i, 1);
-    }
-    PLACES.forEach(p => {
-      p.tried = triedIds.has(p.id);
-      p.pinned = pinnedIds.has(p.id);
-      if (edits[p.id]) Object.assign(p, edits[p.id]);
-    });
-    (data.custom || []).forEach(p => {
-      if (edits[p.id]) Object.assign(p, edits[p.id]);
-      p.custom = true;
-      p.tried = triedIds.has(p.id);
-      p.pinned = pinnedIds.has(p.id);
-      PLACES.push(p);
-    });
+    const [catsRes, placesRes] = await Promise.all([
+      sb.from('categories').select('*').eq('trip_slug', CITY),
+      sb.from('places').select('*').eq('trip_slug', CITY),
+    ]);
+    if (catsRes.error) throw catsRes.error;
+    if (placesRes.error) throw placesRes.error;
 
-    const categories = data.categories || {};
-    (categories.deletedKeys || []).forEach(key => { delete CATEGORIES[key]; });
-    (categories.custom || []).forEach(c => { CATEGORIES[c.key] = { color: c.color, label: c.label }; });
-    Object.entries(categories.labels || {}).forEach(([key, label]) => {
-      if (CATEGORIES[key]) CATEGORIES[key].label = label;
-    });
+    Object.keys(CATEGORIES).forEach(k => delete CATEGORIES[k]);
+    (catsRes.data || []).forEach(c => { CATEGORIES[c.key] = { color: c.color, label: c.label }; });
+
+    PLACES.length = 0;
+    (placesRes.data || []).forEach(p => PLACES.push({
+      id: p.id, name: p.name, cat: p.cat, addr: p.addr || '', note: p.note || '',
+      url: p.url || '', lat: p.lat, lng: p.lng, tried: !!p.tried, pinned: !!p.pinned,
+    }));
   } catch (e) {
     console.error('Failed to load saved places', e);
   }
@@ -1100,11 +1084,7 @@ async function createCategory(label) {
   while (CATEGORIES[key]) { key = `${slugify(trimmed)}-${n++}`; }
   const color = CATEGORY_PALETTE[Object.keys(CATEGORIES).length % CATEGORY_PALETTE.length];
   try {
-    const res = await authedFetch(CATEGORIES_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ city: CITY, key, label: trimmed, color }),
-    });
+    const res = await dbWrite({ table: 'categories', op: 'insert', values: { trip_slug: CITY, key, label: trimmed, color } });
     if (!res.ok) throw new Error('save failed');
   } catch (e) {
     console.error('Failed to save category', e);
@@ -1122,7 +1102,7 @@ async function deleteCategory(key) {
   }
   if (!(await askConfirm('Delete category?', `Delete "${CATEGORIES[key].label}"? This can't be undone.`, { danger: true, confirmText: 'Delete' }))) return;
   try {
-    const res = await authedFetch(`${CATEGORIES_API}?city=${CITY}&key=${encodeURIComponent(key)}`, { method: 'DELETE' });
+    const res = await dbWrite({ table: 'categories', op: 'delete', match: { trip_slug: CITY, key } });
     if (!res.ok) throw new Error('delete failed');
   } catch (e) {
     console.error('Failed to delete category', e);
@@ -1140,11 +1120,7 @@ async function renameCategory(key, newLabel) {
   const trimmed = newLabel.trim();
   if (!trimmed || trimmed === CATEGORIES[key].label) { buildFilters(); return; }
   try {
-    const res = await authedFetch(CATEGORIES_API, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ city: CITY, key, label: trimmed }),
-    });
+    const res = await dbWrite({ table: 'categories', op: 'update', match: { trip_slug: CITY, key }, values: { label: trimmed } });
     if (!res.ok) throw new Error('rename failed');
   } catch (e) {
     console.error('Failed to rename category', e);
@@ -1267,6 +1243,14 @@ async function authedFetch(url, options = {}) {
   return res;
 }
 
+function dbWrite(payload) {
+  return authedFetch(DB_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
 async function toggleTried(id, ev) {
   if (ev) ev.stopPropagation();
   const p = PLACES.find(pp => pp.id === id);
@@ -1275,11 +1259,7 @@ async function toggleTried(id, ev) {
   refreshMarkerIcon(id);
   buildList();
   try {
-    const res = await authedFetch(API, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ city: CITY, id, tried: p.tried }),
-    });
+    const res = await dbWrite({ table: 'places', op: 'update', match: { id }, values: { tried: p.tried } });
     if (!res.ok) throw new Error('save failed');
   } catch (e) {
     console.error('Failed to save tried state', e);
@@ -1297,11 +1277,7 @@ async function togglePinned(id, ev) {
   refreshMarkerIcon(id);
   buildList();
   try {
-    const res = await authedFetch(API, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ city: CITY, id, pinned: p.pinned }),
-    });
+    const res = await dbWrite({ table: 'places', op: 'update', match: { id }, values: { pinned: p.pinned } });
     if (!res.ok) throw new Error('save failed');
   } catch (e) {
     console.error('Failed to save pinned state', e);
@@ -1315,7 +1291,7 @@ async function deletePlace(id, ev) {
   if (ev) ev.stopPropagation();
   if (!(await askConfirm('Remove place?', 'Remove this place from your list?', { danger: true, confirmText: 'Remove' }))) return;
   try {
-    const res = await authedFetch(`${API}?city=${CITY}&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const res = await dbWrite({ table: 'places', op: 'delete', match: { id } });
     if (!res.ok) throw new Error('delete failed');
   } catch (e) {
     console.error('Failed to delete place', e);
@@ -1419,16 +1395,14 @@ document.getElementById('add-url').addEventListener('input', (e) => {
 });
 
 async function commitNewPlace(place) {
-  const res = await authedFetch(API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ city: CITY, place }),
-  });
+  const res = await dbWrite({ table: 'places', op: 'insert', values: { trip_slug: CITY, ...place } });
   if (res.status === 401) throw new Error('unauthorized');
   if (!res.ok) throw new Error('Save failed');
-  const saved = await res.json();
-  saved.custom = true;
-  saved.tried = false;
+  const row = await res.json();
+  const saved = {
+    id: row.id, name: row.name, cat: row.cat, addr: row.addr || '', note: row.note || '',
+    url: row.url || '', lat: row.lat, lng: row.lng, tried: !!row.tried, pinned: !!row.pinned,
+  };
   PLACES.push(saved);
   addMarkerFor(saved);
   updateMarkers();
@@ -1603,11 +1577,7 @@ addForm.addEventListener('submit', async (e) => {
     const fields = { name, cat, addr, note, url };
     if (coords) { fields.lat = coords.lat; fields.lng = coords.lng; }
     try {
-      const res = await authedFetch(API, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city: CITY, id, edits: fields }),
-      });
+      const res = await dbWrite({ table: 'places', op: 'update', match: { id }, values: fields });
       if (res.status === 401) throw new Error('unauthorized');
       if (!res.ok) throw new Error('save failed');
       Object.assign(p, fields);
@@ -1716,9 +1686,9 @@ async function init() {
 
   let trip;
   try {
-    const res = await fetch(TRIPS_API);
-    const trips = await res.json();
-    trip = trips.find(t => t.slug === CITY);
+    const { data, error } = await sb.from('trips').select('*').eq('slug', CITY).maybeSingle();
+    if (error) throw error;
+    trip = data;
   } catch (e) {
     console.error('Failed to load trip', e);
   }
@@ -1748,19 +1718,59 @@ async function init() {
   buildFilters();
   buildList();
   buildMapFilterChips();
+  subscribeRealtime();
 }
+
+function rebuildMarkers() {
+  markers.forEach(m => { m.closePopup(); m.remove(); });
+  markers.clear();
+  PLACES.forEach(addMarkerFor);
+  updateMarkers();
+}
+
+// Re-render everything from the current in-memory state after a remote change.
+function rerenderAll() {
+  rebuildMarkers();
+  populateCategorySelect();
+  buildFilters();
+  buildList();
+  buildMapFilterChips();
+  updateMapFilterHandle();
+  if (selectedId && PLACES.some(p => p.id === selectedId)) {
+    const marker = markers.get(selectedId);
+    if (marker) marker.openPopup();
+  } else {
+    selectedId = null;
+  }
+}
+
+let refreshTimer = null;
+function scheduleRefresh() {
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(async () => {
+    const modal = document.getElementById('add-modal-overlay');
+    if (modal && modal.classList.contains('open')) { scheduleRefresh(); return; }
+    if (activeFilter !== 'All' && !CATEGORIES[activeFilter]) activeFilter = 'All';
+    await loadRemoteState();
+    rerenderAll();
+  }, 350);
+}
+
+function subscribeRealtime() {
+  sb.channel(`trip-${CITY}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'places', filter: `trip_slug=eq.${CITY}` }, scheduleRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'categories', filter: `trip_slug=eq.${CITY}` }, scheduleRefresh)
+    .subscribe();
+}
+
+// Safety net: realtime can miss events while the tab is backgrounded.
 let lastHiddenAt = 0;
-document.addEventListener('visibilitychange', async () => {
+document.addEventListener('visibilitychange', () => {
   if (document.hidden) { lastHiddenAt = Date.now(); return; }
   if (Date.now() - lastHiddenAt < 4000) return;
   const modal = document.getElementById('add-modal-overlay');
   if (modal && modal.classList.contains('open')) return;
-  try {
-    const res = await fetch(`${API}?city=${CITY}&_=${Date.now()}`);
-    if (!res.ok) return;
-    const fresh = JSON.stringify(await res.json());
-    if (lastStateSig && fresh !== lastStateSig) location.reload();
-  } catch (e) { /* ignore */ }
+  scheduleRefresh();
 });
 init();
 </script>

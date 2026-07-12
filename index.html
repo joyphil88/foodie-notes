@@ -286,27 +286,6 @@
   </header>
 
   <ul class="trip-list" id="custom-trip-list"></ul>
-
-  <ul class="trip-list">
-    <li class="trip-item">
-      <a href="hawaii2026.html">
-        <div>
-          <div class="trip-name">Hawaii</div>
-          <div class="trip-meta">Oahu · 2026 · 22 places</div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-    </li>
-    <li class="trip-item">
-      <a href="austin2026.html">
-        <div>
-          <div class="trip-name">Austin</div>
-          <div class="trip-meta">Texas · 2026 · 17 places</div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-    </li>
-  </ul>
 </div>
 
 <div class="modal-overlay" id="trip-modal-overlay">
@@ -332,11 +311,19 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const TRIPS_API = '/.netlify/functions/trips';
+const SUPABASE_URL = 'https://almchnjiepfqqgzvqnkb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_GTmDaMUBXuofMxjo2j9A_w_8oSf77Ft';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const DB_API = '/.netlify/functions/db';
 let trips = [];
 let openTripMenuSlug = null;
 let editingTripSlug = null;
+
+function slugify(s) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
 
 async function authedFetch(url, options = {}) {
   const stored = localStorage.getItem('foodiePasscode');
@@ -353,6 +340,14 @@ async function authedFetch(url, options = {}) {
   return res;
 }
 
+function dbWrite(payload) {
+  return authedFetch(DB_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
 async function geocode(destination) {
   const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(destination)}`;
   const res = await fetch(url);
@@ -366,7 +361,7 @@ const listEl = document.getElementById('custom-trip-list');
 
 function renderTrips() {
   listEl.innerHTML = '';
-  const sorted = [...trips].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const sorted = [...trips].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   sorted.forEach(trip => {
     const li = document.createElement('li');
     li.className = 'trip-item';
@@ -411,7 +406,7 @@ async function deleteTrip(slug, ev) {
   if (!trip) return;
   if (!confirm(`Delete "${trip.name}"? This removes all its places too.`)) return;
   try {
-    const res = await authedFetch(`${TRIPS_API}?slug=${encodeURIComponent(slug)}`, { method: 'DELETE' });
+    const res = await dbWrite({ table: 'trips', op: 'delete', match: { slug } });
     if (!res.ok) throw new Error('delete failed');
   } catch (e) {
     console.error('Failed to delete trip', e);
@@ -475,11 +470,7 @@ tripForm.addEventListener('submit', async (e) => {
     tripSubmitBtn.disabled = true;
     tripSubmitBtn.textContent = 'Saving…';
     try {
-      const res = await authedFetch(TRIPS_API, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: editingTripSlug, name, subtitle }),
-      });
+      const res = await dbWrite({ table: 'trips', op: 'update', match: { slug: editingTripSlug }, values: { name, subtitle } });
       if (res.status === 401) throw new Error('unauthorized');
       if (!res.ok) throw new Error('save failed');
       const trip = trips.find(t => t.slug === editingTripSlug);
@@ -515,12 +506,11 @@ tripForm.addEventListener('submit', async (e) => {
   }
 
   tripSubmitBtn.textContent = 'Creating…';
+  let slug = slugify(name);
+  let n = 2;
+  while (trips.some(t => t.slug === slug)) { slug = `${slugify(name)}-${n++}`; }
   try {
-    const res = await authedFetch(TRIPS_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, subtitle, lat: coords.lat, lng: coords.lng, zoom: 12 }),
-    });
+    const res = await dbWrite({ table: 'trips', op: 'insert', values: { slug, name, subtitle, lat: coords.lat, lng: coords.lng, zoom: 12 } });
     if (res.status === 401) throw new Error('unauthorized');
     if (!res.ok) throw new Error('create failed');
     const trip = await res.json();
@@ -537,8 +527,9 @@ tripForm.addEventListener('submit', async (e) => {
 
 async function init() {
   try {
-    const res = await fetch(TRIPS_API);
-    if (res.ok) trips = await res.json();
+    const { data, error } = await sb.from('trips').select('*');
+    if (error) throw error;
+    trips = data || [];
   } catch (e) {
     console.error('Failed to load trips', e);
   }
