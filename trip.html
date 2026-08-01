@@ -394,14 +394,19 @@
       gap: 12px;
     }
 
-    .add-place-btn {
+    /* Adding a place is the common action, so it gets its own button beside the kebab. */
+    .header-actions { display: flex; align-items: flex-start; gap: 4px; flex-shrink: 0; }
+
+    .header-add-btn {
       flex-shrink: 0;
-      margin-top: 6px;
-      font-size: .68rem;
-      font-weight: 600;
-      letter-spacing: .04em;
-      padding: 7px 14px;
-      border-radius: 20px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.15rem;
+      line-height: 1;
+      border-radius: 50%;
       border: 1px solid var(--text);
       background: var(--text);
       color: #fff;
@@ -409,7 +414,7 @@
       transition: opacity .15s;
     }
 
-    .add-place-btn:hover { opacity: .8; }
+    .header-add-btn:hover { opacity: .8; }
 
     .header-menu-wrap { position: relative; flex-shrink: 0; margin-top: 2px; }
     .header-menu-btn { font-size: 1.2rem; line-height: 1; color: var(--muted); background: none; border: none; cursor: pointer; padding: 2px 8px; border-radius: 6px; }
@@ -729,6 +734,9 @@
     @media (max-width: 680px) {
       /* Larger, easier-to-tap header menu items. */
       .header-menu button { font-size: .95rem; padding: 12px 16px; }
+      .header-add-btn { width: 34px; height: 34px; font-size: 1.35rem; }
+      /* Clear the fixed List/Map button, which shares this corner of the screen. */
+      #toast-wrap { bottom: 78px; }
       /* 16px inputs stop iOS Safari from auto-zooming on focus. */
       .modal input, .modal select, .modal textarea, .cselect-btn, .dialog input { font-size: 16px; }
     }
@@ -741,11 +749,13 @@
       <a class="back-link" href="index.html">← Foodie Notes</a>
       <div class="header-main">
         <h1 id="trip-title">Loading…</h1>
-        <div class="header-menu-wrap">
-          <button class="header-menu-btn" title="More" onclick="toggleHeaderMenu(event)">⋯</button>
-          <div class="header-menu" id="header-menu">
-            <button onclick="openAddModal(); closeHeaderMenu();">+ Add place</button>
-            <button onclick="enterCategoryEdit(); closeHeaderMenu();">Edit categories</button>
+        <div class="header-actions">
+          <button class="header-add-btn" title="Add place" aria-label="Add place" onclick="openAddModal()">+</button>
+          <div class="header-menu-wrap">
+            <button class="header-menu-btn" title="More" onclick="toggleHeaderMenu(event)">⋯</button>
+            <div class="header-menu" id="header-menu">
+              <button onclick="enterCategoryEdit(); closeHeaderMenu();">Edit categories</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1183,7 +1193,7 @@ function buildList() {
     : (activeFilter === 'All' ? `${tryTotal} places to try` : `${tryVisible} of ${tryTotal} places`);
 
   if (PLACES.length === 0) {
-    listEl.innerHTML = '<div class="empty-list">Nothing here yet — tap "+ Add place" to start building this trip.</div>';
+    listEl.innerHTML = '<div class="empty-list">Nothing here yet — tap + up top to start building this trip.</div>';
     return;
   }
 
@@ -1232,7 +1242,7 @@ document.addEventListener('click', () => {
   if (openMenuId !== null) { openMenuId = null; buildList(); }
 });
 
-function selectPlace(id, pan) {
+function selectPlace(id, pan, flipToMap = true) {
   const prevId = selectedId;
   selectedId = id;
   if (prevId !== null) refreshMarkerIcon(prevId);
@@ -1245,9 +1255,11 @@ function selectPlace(id, pan) {
   if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   // On mobile a list tap reveals the pin — flip to the map view (which centers on
   // the selected place and opens its popup), since the list can't show the map move.
+  // Adding a place passes flipToMap=false: the list is where you want to land, and
+  // yanking the view to the map hides the entry that was just created.
   const isMobile = window.matchMedia('(max-width: 680px)').matches;
   if (pan && isMobile && !mapVisible) {
-    toggleMobileView();
+    if (flipToMap) toggleMobileView();
     return;
   }
   if (pan) {
@@ -1522,7 +1534,7 @@ async function autoFillFromName() {
       try {
         const saved = await commitNewPlace({ name: data.name, cat, addr: data.address, note: data.note || '', url: data.mapsUrl || '', lat: coords.lat, lng: coords.lng });
         closeAddModal();
-        selectPlace(saved.id, true);
+        selectPlace(saved.id, true, false);
         showToast(`Added ${saved.name}`);
         return;
       } catch (err) {
@@ -1673,7 +1685,8 @@ addForm.addEventListener('submit', async (e) => {
   try {
     const saved = await commitNewPlace({ name, cat, addr, note, url, lat: coords.lat, lng: coords.lng });
     closeAddModal();
-    selectPlace(saved.id, true);
+    selectPlace(saved.id, true, false);
+    showToast(`Added ${saved.name}`);
   } catch (err) {
     addError.textContent = err.message === 'unauthorized'
       ? 'Wrong passcode — try again.'
