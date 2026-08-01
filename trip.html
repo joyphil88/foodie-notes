@@ -114,12 +114,14 @@
       text-transform: uppercase;
     }
 
-    .chip:hover { border-color: var(--text); color: var(--text); }
+    /* Touch keeps :hover on the last-tapped element, so a deselected chip kept its
+       dark border. Hover affordances are for real pointers only. */
+    @media (hover: hover) { .chip:hover { border-color: var(--text); color: var(--text); } }
     .chip.active { background: var(--text); border-color: var(--text); color: #fff; }
 
     .chip.editing { display: inline-flex; align-items: center; gap: 6px; }
     .chip-delete { font-size: .8rem; line-height: 1; opacity: .6; }
-    .chip-delete:hover { opacity: 1; color: #c0392b; }
+    @media (hover: hover) { .chip-delete:hover { opacity: 1; color: #c0392b; } }
     .chip-add { border-style: dashed; }
     .chip-rename-input {
       font-family: 'Inter', sans-serif;
@@ -145,7 +147,7 @@
       cursor: pointer;
     }
 
-    .chip-kebab:hover { border-color: var(--text); color: var(--text); }
+    @media (hover: hover) { .chip-kebab:hover { border-color: var(--text); color: var(--text); } }
     .chip-kebab.active { background: var(--text); border-color: var(--text); color: #fff; }
 
     /* ── List ── */
@@ -418,11 +420,11 @@
       color: #fff;
     }
 
-    .header-add-btn:hover { opacity: .8; }
+    @media (hover: hover) { .header-add-btn:hover { opacity: .8; } }
 
     .header-menu-wrap { position: relative; flex-shrink: 0; display: flex; }
     .header-menu-btn { font-size: 1.2rem; color: var(--muted); background: none; border: none; padding: 0; border-radius: 6px; }
-    .header-menu-btn:hover { background: var(--light); color: var(--text); }
+    @media (hover: hover) { .header-menu-btn:hover { background: var(--light); color: var(--text); } }
     .header-menu { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.14); min-width: 150px; z-index: 50; overflow: hidden; }
     .header-menu.open { display: block; }
     .header-menu button { display: block; width: 100%; text-align: left; padding: 10px 14px; font-size: .8rem; background: none; border: none; color: var(--text); cursor: pointer; white-space: nowrap; }
@@ -453,7 +455,7 @@
       transition: all .15s;
     }
 
-    .tried-toggle:hover { border-color: var(--text); }
+    @media (hover: hover) { .tried-toggle:hover { border-color: var(--text); } }
     .tried-toggle.tried { background: #6b8e5a; border-color: #6b8e5a; color: #fff; }
     .tried-toggle-spacer { flex-shrink: 0; width: 20px; }
 
@@ -471,7 +473,7 @@
       transition: color .15s;
       padding: 0;
     }
-    .pin-toggle:hover { color: var(--muted); }
+    @media (hover: hover) { .pin-toggle:hover { color: var(--muted); } }
     .pin-toggle.pinned { color: #c8a96e; }
     .pin-toggle.pinned svg { fill: currentColor; }
 
@@ -504,7 +506,7 @@
       transition: opacity .15s, color .15s;
     }
 
-    .item-menu-btn:hover { opacity: 1; color: var(--text); }
+    @media (hover: hover) { .item-menu-btn:hover { opacity: 1; color: var(--text); } }
 
     .item-menu {
       display: none;
@@ -663,7 +665,7 @@
       cursor: pointer;
     }
 
-    .autofill-btn:hover { border-color: var(--text); }
+    @media (hover: hover) { .autofill-btn:hover { border-color: var(--text); } }
     .autofill-btn:disabled { opacity: .5; cursor: default; }
     .manual-hint { margin-top: 10px; }
     .link-btn { background: none; border: none; color: var(--muted); font-size: .72rem; text-decoration: underline; cursor: pointer; padding: 0; font-family: 'Inter', sans-serif; }
