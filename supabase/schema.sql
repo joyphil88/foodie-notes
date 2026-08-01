@@ -26,6 +26,8 @@ create table if not exists places (
   name text not null,
   cat text,
   addr text default '',
+  -- Neighborhood/town shown in the list — a district in Tokyo, a town in the Bay Area.
+  area text default '',
   note text default '',
   url text default '',
   lat double precision not null,
