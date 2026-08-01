@@ -394,30 +394,34 @@
       gap: 12px;
     }
 
-    /* Adding a place is the common action, so it gets its own button beside the kebab. */
-    .header-actions { display: flex; align-items: flex-start; gap: 4px; flex-shrink: 0; }
+    /* Adding a place is the common action, so it gets its own button beside the kebab.
+       Both buttons are the same square box so the ⋯ centres on the + circle. */
+    .header-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
 
-    .header-add-btn {
+    .header-add-btn, .header-menu-btn {
       flex-shrink: 0;
       width: 28px;
       height: 28px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.15rem;
       line-height: 1;
-      border-radius: 50%;
-      border: 1px solid var(--text);
-      background: var(--text);
-      color: #fff;
       cursor: pointer;
       transition: opacity .15s;
     }
 
+    .header-add-btn {
+      font-size: 1.15rem;
+      border-radius: 50%;
+      border: 1px solid var(--text);
+      background: var(--text);
+      color: #fff;
+    }
+
     .header-add-btn:hover { opacity: .8; }
 
-    .header-menu-wrap { position: relative; flex-shrink: 0; margin-top: 2px; }
-    .header-menu-btn { font-size: 1.2rem; line-height: 1; color: var(--muted); background: none; border: none; cursor: pointer; padding: 2px 8px; border-radius: 6px; }
+    .header-menu-wrap { position: relative; flex-shrink: 0; display: flex; }
+    .header-menu-btn { font-size: 1.2rem; color: var(--muted); background: none; border: none; padding: 0; border-radius: 6px; }
     .header-menu-btn:hover { background: var(--light); color: var(--text); }
     .header-menu { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.14); min-width: 150px; z-index: 50; overflow: hidden; }
     .header-menu.open { display: block; }
@@ -734,7 +738,9 @@
     @media (max-width: 680px) {
       /* Larger, easier-to-tap header menu items. */
       .header-menu button { font-size: .95rem; padding: 12px 16px; }
-      .header-add-btn { width: 34px; height: 34px; font-size: 1.35rem; }
+      .header-add-btn, .header-menu-btn { width: 34px; height: 34px; }
+      .header-add-btn { font-size: 1.35rem; }
+      .header-menu-btn { font-size: 1.4rem; }
       /* Clear the fixed List/Map button, which shares this corner of the screen. */
       #toast-wrap { bottom: 78px; }
       /* 16px inputs stop iOS Safari from auto-zooming on focus. */
