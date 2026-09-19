@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -838,6 +839,8 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const CATEGORIES = {};
@@ -1487,28 +1490,52 @@ function plausibleCoords(c) {
   return !!c && (!TRIP_CENTER || distKm(c, TRIP_CENTER) <= TRIP_RADIUS_KM);
 }
 
-// The AI returns a reliable address but its memorized coords can be off by a mile+
-// for obscure spots. OSM usually has the exact business by name, so geocode
-// "name, <locality from address>" and prefer it — but only if it's near the AI's
-// estimate, so a same-named place elsewhere can't hijack the pin. With no usable
-// estimate we return null, and the caller falls back to geocoding the address.
+// How far an OSM name match may sit from its anchor and still be believed.
+// Anchored on the geocoded street address, the name hit is only nudging the pin from
+// the street to the building, so hold it tight. With no address geocode to lean on we
+// are anchored on the AI's own estimate and correcting that estimate's drift, which
+// runs to a mile or more, so allow more room there.
+const NAME_MATCH_KM = 2;
+const NAME_MATCH_KM_LOOSE = 6;
+
+async function searchOSM(query) {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const results = await res.json();
+  if (!results.length) return null;
+  const geo = { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) };
+  return (Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) ? geo : null;
+}
+
+// The AI returns a reliable address but its memorized coords can be off by a mile+ for
+// obscure spots, and OSM usually holds the exact business by name — so geocode the name
+// and prefer it, but only once something precise agrees with it.
+//
+// That agreement has to come from the address, not from the AI's estimate. A free-text
+// name search is the loosest query Nominatim takes: it drops the postcode outright and
+// will answer with any vaguely similar business in the city. "The Connaught Bar,
+// London W1K 2AL" comes back as a pub called Fox@Connaught in Silvertown, 13km east of
+// the real bar in Mayfair — close enough to the AI's estimate to slip through a wide
+// radius, which is how that pin ended up by London City Airport. Geocoding the address
+// itself lands on Carlos Place exactly, so resolve the address first and let it anchor
+// the name match. The address geocode is also the better fallback when no name matches.
 async function refineCoordsByName(name, addr, fallback) {
-  const anchor = plausibleCoords(fallback) ? fallback : null;
+  const estimate = plausibleCoords(fallback) ? fallback : null;
   const locality = (addr || '').split(',').slice(1).join(',').trim();
-  const query = locality ? `${name}, ${locality}` : (CITY_LABEL ? `${name}, ${CITY_LABEL}` : name);
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
-    const res = await fetch(url);
-    if (!res.ok) return anchor;
-    const results = await res.json();
-    if (!results.length) return anchor;
-    const geo = { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) };
-    if (!Number.isFinite(geo.lat) || !Number.isFinite(geo.lng)) return anchor;
-    if (!anchor) return plausibleCoords(geo) ? geo : null;
-    if (distKm(geo, anchor) < 30) return geo;
+    const addrQuery = addr && (locality || !CITY_LABEL) ? addr : (addr ? `${addr}, ${CITY_LABEL}` : '');
+    const addrGeo = addrQuery ? await searchOSM(addrQuery) : null;
+    const anchor = plausibleCoords(addrGeo) ? addrGeo : estimate;
+    if (!anchor) return null;
+
+    const query = locality ? `${name}, ${locality}` : (CITY_LABEL ? `${name}, ${CITY_LABEL}` : name);
+    const geo = await searchOSM(query);
+    const tolerance = anchor === addrGeo ? NAME_MATCH_KM : NAME_MATCH_KM_LOOSE;
+    if (geo && plausibleCoords(geo) && distKm(geo, anchor) <= tolerance) return geo;
     return anchor;
   } catch (e) {
-    return anchor;
+    return estimate;
   }
 }
 
@@ -1895,12 +1922,12 @@ async function init() {
   CITY_LABEL = trip.name;
   if (Number.isFinite(trip.lat) && Number.isFinite(trip.lng)) TRIP_CENTER = { lat: trip.lat, lng: trip.lng };
 
-  map = L.map('map', { zoomControl: false }).setView([trip.lat, trip.lng], trip.zoom || 12);
+  map = L.map('map', { zoomControl: false, maxZoom: 19 }).setView([trip.lat, trip.lng], trip.zoom || 12);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap contributors © CARTO',
-    maxZoom: 19
-  }).addTo(map);
+  // CARTO's free basemap tiles now stamp "API KEY REQUIRED" across every tile. OpenFreeMap
+  // serves the same Positron style as vector tiles with no key and no usage cap, so the map
+  // keeps its look; maplibre-gl-leaflet renders it underneath the existing Leaflet markers.
+  L.maplibreGL({ style: 'https://tiles.openfreemap.org/styles/positron' }).addTo(map);
 
   await loadRemoteState();
   PLACES.forEach(addMarkerFor);
