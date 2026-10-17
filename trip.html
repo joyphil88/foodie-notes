@@ -757,6 +757,18 @@
       /* 16px inputs stop iOS Safari from auto-zooming on focus. */
       .modal input, .modal select, .modal textarea, .cselect-btn, .dialog input { font-size: 16px; }
     }
+
+    /* ── Locate-me control ── */
+    .locate-btn {
+      width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--surface); color: var(--text);
+      border: none; cursor: pointer; padding: 0;
+    }
+    .locate-btn svg { width: 18px; height: 18px; }
+    .locate-btn.active { color: #2a7de1; }
+    .locate-btn.waiting svg { animation: locate-pulse 1s ease-in-out infinite; }
+    @keyframes locate-pulse { 50% { opacity: .35; } }
   </style>
 </head>
 <body>
@@ -993,6 +1005,23 @@ function askConfirm(title, message, opts) {
 
 
 let activeFilter = 'All';
+// A pseudo-filter alongside the categories: everything you've checked off.
+const VISITED = '__visited';
+const visitedCount = () => PLACES.filter(p => p.tried && !isHotelCat(p.cat)).length;
+function matchesFilter(p) {
+  if (activeFilter === 'All') return true;
+  if (activeFilter === VISITED) return p.tried && !isHotelCat(p.cat);
+  return p.cat === activeFilter;
+}
+function appendVisitedChip(el, onPick) {
+  const n = visitedCount();
+  if (!n && activeFilter !== VISITED) return;
+  const chip = document.createElement('button');
+  chip.className = 'chip' + (activeFilter === VISITED ? ' active' : '');
+  chip.innerHTML = `Visited<span class="chip-count">${n}</span>`;
+  chip.onclick = () => onPick(activeFilter === VISITED ? 'All' : VISITED);
+  el.appendChild(chip);
+}
 let selectedId = null;
 let openMenuId = null;
 const markers = new Map();
@@ -1081,10 +1110,13 @@ function categoryCount(key) {
 // Filter chips lead with the categories holding the most places, so the rows that
 // survive the collapse below are the ones actually worth tapping. Edit mode keeps
 // the alphabetical order — there you're hunting a specific name, not browsing.
+// Empty categories only show in edit mode (to rename or delete them), or while selected.
 function filterCategoryEntries() {
   const entries = sortedCategoryEntries(false);
   if (categoriesEditMode) return entries;
-  return entries.sort((a, b) => categoryCount(b[0]) - categoryCount(a[0]));
+  return entries
+    .filter(([key]) => categoryCount(key) > 0 || key === activeFilter)
+    .sort((a, b) => categoryCount(b[0]) - categoryCount(a[0]));
 }
 
 let filtersExpanded = false;
@@ -1148,6 +1180,7 @@ function buildFilters() {
     }
     filtersEl.appendChild(chip);
   });
+  if (!categoriesEditMode) appendVisitedChip(filtersEl, setFilter);
 
   if (categoriesEditMode) {
     const addChip = document.createElement('button');
@@ -1276,12 +1309,12 @@ function setFilter(key) {
 
 function buildList() {
   listEl.innerHTML = '';
-  const visible = PLACES.filter(p => activeFilter === 'All' || p.cat === activeFilter);
+  const visible = PLACES.filter(matchesFilter);
   const tryTotal = PLACES.filter(p => !isHotelCat(p.cat)).length;
   const tryVisible = visible.filter(p => !isHotelCat(p.cat)).length;
   countEl.textContent = PLACES.length === 0
     ? 'No places yet'
-    : (activeFilter === 'All' ? `${tryTotal} places to try` : `${tryVisible} of ${tryTotal} places`);
+    : (activeFilter === 'All' ? `${tryTotal} places to try` : activeFilter === VISITED ? `${tryVisible} of ${tryTotal} visited` : `${tryVisible} of ${tryTotal} places`);
 
   if (PLACES.length === 0) {
     listEl.innerHTML = '<div class="empty-list">Nothing here yet — tap + up top to start building this trip.</div>';
@@ -1291,6 +1324,8 @@ function buildList() {
   const sorted = [...visible].sort((a, b) => {
     const aHotel = isHotelCat(a.cat), bHotel = isHotelCat(b.cat);
     if (aHotel !== bHotel) return aHotel ? -1 : 1;
+    // Checked-off places sink to the bottom (A–Z), even if pinned.
+    if (!aHotel && a.tried !== b.tried) return a.tried ? 1 : -1;
     if (!aHotel && a.pinned !== b.pinned) return a.pinned ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
@@ -1363,7 +1398,7 @@ function updateMarkers() {
   PLACES.forEach(p => {
     // Hotels stay pinned through every filter — they're where you're sleeping, so
     // they're the reference point for reading how far everything else is.
-    const show = activeFilter === 'All' || p.cat === activeFilter || isHotelCat(p.cat);
+    const show = matchesFilter(p) || isHotelCat(p.cat);
     const marker = markers.get(p.id);
     if (!marker) return;
     if (show && !map.hasLayer(marker)) marker.addTo(map);
@@ -1400,17 +1435,24 @@ async function toggleTried(id, ev) {
   const p = PLACES.find(pp => pp.id === id);
   if (!p || isHotelCat(p.cat)) return;
   p.tried = !p.tried;
-  refreshMarkerIcon(id);
-  buildList();
+  refreshTriedViews(id);
   try {
     const res = await dbWrite({ table: 'places', op: 'update', match: { id }, values: { tried: p.tried } });
     if (!res.ok) throw new Error('save failed');
   } catch (e) {
     console.error('Failed to save tried state', e);
     p.tried = !p.tried;
-    refreshMarkerIcon(id);
-    buildList();
+    refreshTriedViews(id);
   }
+}
+
+// The Visited pill's count and the Visited filter both depend on tried state.
+function refreshTriedViews(id) {
+  refreshMarkerIcon(id);
+  buildFilters();
+  buildMapFilterChips();
+  buildList();
+  updateMarkers();
 }
 
 async function togglePinned(id, ev) {
@@ -1520,13 +1562,28 @@ async function searchOSM(query) {
 // radius, which is how that pin ended up by London City Airport. Geocoding the address
 // itself lands on Carlos Place exactly, so resolve the address first and let it anchor
 // the name match. The address geocode is also the better fallback when no name matches.
-async function refineCoordsByName(name, addr, fallback) {
+async function refineCoordsByName(name, addr, fallback, area) {
   const estimate = plausibleCoords(fallback) ? fallback : null;
-  const locality = (addr || '').split(',').slice(1).join(',').trim();
+  const segs = (addr || '').split(',').map(x => x.trim()).filter(Boolean);
+  const locality = segs.slice(1).join(', ');
+  const withCity = (q) => (q && CITY_LABEL && segs.length < 2) ? `${q}, ${CITY_LABEL}` : q;
   try {
-    const addrQuery = addr && (locality || !CITY_LABEL) ? addr : (addr ? `${addr}, ${CITY_LABEL}` : '');
-    const addrGeo = addrQuery ? await searchOSM(addrQuery) : null;
-    const anchor = plausibleCoords(addrGeo) ? addrGeo : estimate;
+    // Nominatim returns nothing when a building or floor sits mid-address ("2-21-1 Takanawa,
+    // NEWoMan TAKANAWA LUFTBAUM 28F, Minato-ku"), so retry with just the street and the
+    // final locality — that query lands on the right block.
+    let addrGeo = addr ? await searchOSM(withCity(addr)) : null;
+    if (!plausibleCoords(addrGeo) && segs.length > 2) addrGeo = await searchOSM(`${segs[0]}, ${segs[segs.length - 1]}`);
+    if (!plausibleCoords(addrGeo)) addrGeo = null;
+
+    // No address fix means leaning on the AI's estimate, which can be wildly off — LOOPS in
+    // Tokyo came back a whole degree of latitude south, in the sea, yet well inside the trip
+    // radius. Check it against the neighbourhood and take the neighbourhood if they disagree.
+    let anchor = addrGeo;
+    if (!anchor) {
+      const areaGeo = area ? await searchOSM(CITY_LABEL ? `${area}, ${CITY_LABEL}` : area) : null;
+      const areaOk = plausibleCoords(areaGeo);
+      anchor = estimate && (!areaOk || distKm(estimate, areaGeo) <= NAME_MATCH_KM_LOOSE) ? estimate : (areaOk ? areaGeo : null);
+    }
     if (!anchor) return null;
 
     const query = locality ? `${name}, ${locality}` : (CITY_LABEL ? `${name}, ${CITY_LABEL}` : name);
@@ -1658,7 +1715,7 @@ async function autoFillFromName() {
     let coords = (Number.isFinite(data.lat) && Number.isFinite(data.lng))
       ? { lat: data.lat, lng: data.lng }
       : coordsFromMapsUrl(data.mapsUrl);
-    coords = await refineCoordsByName(data.name, data.address, coords);
+    coords = await refineCoordsByName(data.name, data.address, coords, data.area);
     knownCoords = coords;
 
     if (coords) {
@@ -1879,11 +1936,12 @@ function buildMapFilterChips() {
     chip.onclick = () => { setFilter(activeFilter === key ? 'All' : key); updateMapFilterHandle(); };
     el.appendChild(chip);
   });
+  appendVisitedChip(el, (key) => { setFilter(key); updateMapFilterHandle(); });
 }
 
 function updateMapFilterHandle() {
   const label = document.getElementById('map-filter-label');
-  label.textContent = activeFilter === 'All' ? 'Filter' : (CATEGORIES[activeFilter] || { label: activeFilter }).label;
+  label.textContent = activeFilter === 'All' ? 'Filter' : activeFilter === VISITED ? 'Visited' : (CATEGORIES[activeFilter] || { label: activeFilter }).label;
   buildMapFilterChips();
 }
 
@@ -1924,6 +1982,7 @@ async function init() {
 
   map = L.map('map', { zoomControl: false, maxZoom: 19 }).setView([trip.lat, trip.lng], trip.zoom || 12);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
+  addLocateControl();
   // CARTO's free basemap tiles now stamp "API KEY REQUIRED" across every tile. OpenFreeMap
   // serves the same Positron style as vector tiles with no key and no usage cap, so the map
   // keeps its look; maplibre-gl-leaflet renders it underneath the existing Leaflet markers.
@@ -1937,6 +1996,56 @@ async function init() {
   buildList();
   buildMapFilterChips();
   subscribeRealtime();
+}
+
+// ── Locate me ────────────────────────────────────────────────────────
+// Shows a live blue dot for where you are, and centres the map on it so the
+// nearby pins are what's on screen. Tapping again re-centres.
+const LOCATE_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>';
+let locateWatchId = null, myLocation = null, myDot = null, myAccuracy = null, centreOnNextFix = false;
+
+function addLocateControl() {
+  const Locate = L.Control.extend({
+    options: { position: 'bottomright' },
+    onAdd() {
+      const wrap = L.DomUtil.create('div', 'leaflet-bar');
+      const btn = L.DomUtil.create('button', 'locate-btn', wrap);
+      btn.type = 'button';
+      btn.title = 'Show my location';
+      btn.innerHTML = LOCATE_ICON_SVG;
+      L.DomEvent.disableClickPropagation(wrap);
+      L.DomEvent.on(btn, 'click', () => locateMe(btn));
+      return wrap;
+    },
+  });
+  new Locate().addTo(map);
+}
+
+function locateMe(btn) {
+  if (!navigator.geolocation) { showToast('Location isn\'t available on this device', 'danger'); return; }
+  if (myLocation) { map.setView(myLocation, Math.max(map.getZoom(), 15)); return; }
+  centreOnNextFix = true;
+  if (locateWatchId !== null) return;
+  btn.classList.add('waiting');
+  locateWatchId = navigator.geolocation.watchPosition((pos) => {
+    myLocation = [pos.coords.latitude, pos.coords.longitude];
+    const acc = pos.coords.accuracy || 0;
+    if (!myDot) {
+      myAccuracy = L.circle(myLocation, { radius: acc, color: '#2a7de1', weight: 1, opacity: .4, fillOpacity: .1, interactive: false }).addTo(map);
+      myDot = L.circleMarker(myLocation, { radius: 7, color: '#fff', weight: 2, fillColor: '#2a7de1', fillOpacity: 1, interactive: false }).addTo(map);
+    } else {
+      myDot.setLatLng(myLocation);
+      myAccuracy.setLatLng(myLocation).setRadius(acc);
+    }
+    btn.classList.remove('waiting');
+    btn.classList.add('active');
+    if (centreOnNextFix) { centreOnNextFix = false; map.setView(myLocation, Math.max(map.getZoom(), 15)); }
+  }, (err) => {
+    navigator.geolocation.clearWatch(locateWatchId);
+    locateWatchId = null;
+    btn.classList.remove('waiting', 'active');
+    showToast(err.code === 1 ? 'Location permission is off for this site' : 'Couldn\'t find your location', 'danger');
+  }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
 }
 
 function rebuildMarkers() {
@@ -1968,7 +2077,7 @@ function scheduleRefresh() {
   refreshTimer = setTimeout(async () => {
     const modal = document.getElementById('add-modal-overlay');
     if (modal && modal.classList.contains('open')) { scheduleRefresh(); return; }
-    if (activeFilter !== 'All' && !CATEGORIES[activeFilter]) activeFilter = 'All';
+    if (activeFilter !== 'All' && activeFilter !== VISITED && !CATEGORIES[activeFilter]) activeFilter = 'All';
     await loadRemoteState();
     rerenderAll();
   }, 350);

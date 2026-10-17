@@ -329,11 +329,10 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL = 'https://almchnjiepfqqgzvqnkb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_GTmDaMUBXuofMxjo2j9A_w_8oSf77Ft';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const TRIPS_CACHE_KEY = 'foodieTripsCache';
 const DB_API = '/.netlify/functions/db';
 let trips = [];
 let openTripMenuSlug = null;
@@ -433,9 +432,13 @@ async function geocode(destination) {
 
 const listEl = document.getElementById('custom-trip-list');
 
+// Newest activity first: a trip rises to the top when it's created or a place is added to it.
+const lastActivity = (t) => [t.created_at || '', t.last_added || ''].sort().pop();
+
 function renderTrips() {
+  try { localStorage.setItem(TRIPS_CACHE_KEY, JSON.stringify(trips)); } catch (e) {}
   listEl.innerHTML = '';
-  const sorted = [...trips].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  const sorted = [...trips].sort((a, b) => lastActivity(b).localeCompare(lastActivity(a)));
   sorted.forEach(trip => {
     const li = document.createElement('li');
     li.className = 'trip-item';
@@ -603,11 +606,30 @@ tripForm.addEventListener('submit', async (e) => {
   }
 });
 
+// The home page only reads, so it talks to Supabase's REST API directly
+// instead of downloading the whole supabase-js client first.
+async function sbGet(path) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+  });
+  if (!res.ok) throw new Error(`${path} → ${res.status}`);
+  return res.json();
+}
+
 async function init() {
+  // Paint last visit's list straight away, then refresh it from the database.
   try {
-    const { data, error } = await sb.from('trips').select('*');
-    if (error) throw error;
-    trips = data || [];
+    const cached = JSON.parse(localStorage.getItem(TRIPS_CACHE_KEY) || 'null');
+    if (Array.isArray(cached)) { trips = cached; renderTrips(); }
+  } catch (e) {}
+  try {
+    const [tripRows, placeRows] = await Promise.all([
+      sbGet('trips?select=*'),
+      sbGet('places?select=trip_slug,created_at&order=created_at.desc'),
+    ]);
+    const lastAdded = {};
+    placeRows.forEach(p => { if (!lastAdded[p.trip_slug]) lastAdded[p.trip_slug] = p.created_at; });
+    trips = tripRows.map(t => ({ ...t, last_added: lastAdded[t.slug] || null }));
   } catch (e) {
     console.error('Failed to load trips', e);
   }
