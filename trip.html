@@ -160,7 +160,9 @@
     }
 
     /* ── List ── */
-    #place-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+    /* No top padding and no iOS rubber-band: either one opened a white gap between the
+       grey pill area and the grey hotel row at the top of the list. */
+    #place-list { flex: 1; overflow-y: auto; overscroll-behavior-y: none; padding: 0 0 4px; }
 
     #place-list::-webkit-scrollbar { width: 4px; }
     #place-list::-webkit-scrollbar-track { background: transparent; }
@@ -324,10 +326,10 @@
       }
 
       #map-filter-drawer.visible { display: flex; }
-      #map-filter-handle, #map-filter-chips { pointer-events: auto; }
+      #map-filter-handle, #map-filter-chips, #map-near-btn { pointer-events: auto; }
+      #map-top-row { display: flex; gap: 8px; margin-top: 10px; }
 
-      #map-filter-handle {
-        margin-top: 10px;
+      #map-filter-handle, #map-near-btn {
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 20px;
@@ -344,6 +346,9 @@
         align-items: center;
         gap: 6px;
       }
+      #map-near-btn svg { width: 11px; height: 11px; }
+      #map-near-btn.active { background: #2a7de1; border-color: #2a7de1; color: #fff; }
+      #map-near-btn.waiting svg { animation: locate-pulse 1s ease-in-out infinite; }
 
       #map-filter-chips {
         display: none;
@@ -359,6 +364,9 @@
       }
 
       #map-filter-chips.open { display: flex; }
+
+      #toggle-icon { display: flex; }
+      #toggle-icon svg { width: 14px; height: 14px; }
 
       #mobile-toggle {
         display: flex;
@@ -384,7 +392,8 @@
         box-shadow: 0 4px 16px rgba(0,0,0,.25);
       }
 
-      .sidebar-header { padding: 18px 18px 16px; }
+      /* iOS Safari blurs the strip just under the status bar; start the header below it. */
+      .sidebar-header { padding: 32px 18px 16px; }
       .sidebar-header h1 { font-size: 1.5rem; }
       .back-link { font-size: .75rem; }
       #count-label { font-size: .8rem; }
@@ -393,7 +402,6 @@
       .place-note { font-size: .82rem; }
       .place-meta { font-size: .78rem; }
       .place-item { padding: 15px 18px; }
-      .hotel-group { padding: 12px 18px; font-size: .9rem; }
       .place-actions { top: 14px; right: 16px; }
       #place-list { padding-bottom: 96px; }
     }
@@ -791,6 +799,8 @@
 
     /* Mobile overrides that must come AFTER the component styles above to win. */
     @media (max-width: 680px) {
+      /* Same left edge as .place-item so the bed icon sits in the tick column. */
+      .hotel-group { padding: 12px 18px; font-size: .9rem; }
       /* Larger, easier-to-tap header menu items. */
       .header-add-btn, .header-near-btn { width: 34px; height: 34px; }
       /* Clear the fixed List/Map button, which shares this corner of the screen. */
@@ -844,15 +854,21 @@
 </div>
 
 <div id="map-filter-drawer">
-  <div id="map-filter-handle" onclick="toggleMapFilters()">
-    <span id="map-filter-label">Filter</span>
-    <span id="map-filter-arrow">▾</span>
+  <div id="map-top-row">
+    <div id="map-filter-handle" onclick="toggleMapFilters()">
+      <span id="map-filter-label">Filter</span>
+      <span id="map-filter-arrow">▾</span>
+    </div>
+    <button id="map-near-btn" type="button" onclick="toggleNearMe()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>
+      Near me
+    </button>
   </div>
   <div id="map-filter-chips"></div>
 </div>
 
 <button id="mobile-toggle" onclick="toggleMobileView()">
-  <span id="toggle-icon">🗺</span>
+  <span id="toggle-icon"></span>
   <span id="toggle-label">Map</span>
 </button>
 
@@ -1439,7 +1455,7 @@ function renderPlaceRow(p, dist) {
   item.className = 'place-item' + (selectedId === p.id ? ' selected' : '') + (p.tried ? ' tried' : '');
   item.dataset.id = p.id;
   item.innerHTML = `
-    ${isHotel ? `<span class="hotel-icon-wrap" title="Hotel">${HOTEL_ICON_SVG}</span>` : `<button class="tried-toggle${p.tried ? ' tried' : ''}" title="${p.tried ? 'Mark as not tried' : 'Mark as tried'}" onclick="toggleTried('${p.id}', event)">✓</button>`}
+    ${isHotel ? `<span class="tried-toggle-spacer"></span>` : `<button class="tried-toggle${p.tried ? ' tried' : ''}" title="${p.tried ? 'Mark as not tried' : 'Mark as tried'}" onclick="toggleTried('${p.id}', event)">✓</button>`}
     <div class="place-item-body">
       <div class="place-name">${p.name}</div>
       <div class="place-note">${p.note}</div>
@@ -2003,15 +2019,19 @@ function fitAllMarkers() {
 
 let mapVisible = false;
 
+// Plain white line icons for the Map/List button (the emoji clashed with the rest).
+const MAP_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>';
+const LIST_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>';
+document.getElementById('toggle-icon').innerHTML = MAP_ICON_SVG;
+
 function toggleMobileView() {
   mapVisible = !mapVisible;
   const mapWrap = document.getElementById('map-wrap');
   const label = document.getElementById('toggle-label');
-  const icon = document.getElementById('toggle-icon');
+  document.getElementById('toggle-icon').innerHTML = mapVisible ? LIST_ICON_SVG : MAP_ICON_SVG;
   mapWrap.classList.toggle('visible', mapVisible);
   document.getElementById('map-filter-drawer').classList.toggle('visible', mapVisible);
   label.textContent = mapVisible ? 'List' : 'Map';
-  icon.textContent = mapVisible ? '☰' : '🗺';
   if (mapVisible) setTimeout(() => {
     map.invalidateSize();
     if (selectedId !== null) {
@@ -2167,7 +2187,7 @@ function startLocationWatch() {
 function locationFailed(msg) {
   if (locateBtn) locateBtn.classList.remove('waiting', 'active');
   nearMePending = false;
-  document.getElementById('near-me-btn').classList.remove('waiting');
+  setNearButtons(nearMe ? 'active' : 'off');
   showToast(msg, 'danger');
 }
 
@@ -2189,18 +2209,27 @@ function formatWalk(km) {
   return `${dist} · ${Math.max(1, Math.round(mi * 20))} min`;
 }
 
+// Near me has two switches — the header button and the pill beside Filter on the
+// phone's map view — so they always change together.
+function setNearButtons(state) {
+  ['near-me-btn', 'map-near-btn'].forEach(id => {
+    const b = document.getElementById(id);
+    b.classList.toggle('active', state === 'active');
+    b.classList.toggle('waiting', state === 'waiting');
+  });
+}
+
 function toggleNearMe() {
-  const btn = document.getElementById('near-me-btn');
   if (nearMe || nearMePending) {
     nearMe = nearMePending = false;
-    btn.classList.remove('active', 'waiting');
+    setNearButtons('off');
     if (nearCircle) { nearCircle.remove(); nearCircle = null; }
     refreshForNearMe();
     fitAllMarkers();
     return;
   }
   nearMePending = true;
-  btn.classList.add('waiting');
+  setNearButtons('waiting');
   if (myLocation) onNearMeFix(); else startLocationWatch();
 }
 
@@ -2208,9 +2237,7 @@ function onNearMeFix() {
   if (nearMePending) {
     nearMePending = false;
     nearMe = true;
-    const btn = document.getElementById('near-me-btn');
-    btn.classList.remove('waiting');
-    btn.classList.add('active');
+    setNearButtons('active');
     nearMeAnchor = null;
     selectedId = null;
   }
