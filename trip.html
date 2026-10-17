@@ -1018,6 +1018,7 @@ function appendVisitedChip(el, onPick) {
   if (!n && activeFilter !== VISITED) return;
   const chip = document.createElement('button');
   chip.className = 'chip' + (activeFilter === VISITED ? ' active' : '');
+  chip.dataset.visited = '1';
   chip.innerHTML = `Visited<span class="chip-count">${n}</span>`;
   chip.onclick = () => onPick(activeFilter === VISITED ? 'All' : VISITED);
   el.appendChild(chip);
@@ -1137,7 +1138,18 @@ function applyFilterOverflow() {
 
   if (filtersExpanded) { toggle.textContent = 'Less'; return; }
 
+  // Never filter by a chip you can't see: if the active chip would land past the cut,
+  // lift it to the front (after All/Visited) so it collapses with everything else and
+  // stays one tap from being turned off.
+  const active = chips.find(c => c.classList.contains('active'));
   const lastRowTop = rowTops[maxRows - 1];
+  if (active && active.offsetTop > lastRowTop) {
+    const anchor = chips[1] && chips[1].dataset.visited ? chips[1] : chips[0];
+    anchor.after(active);
+    chips.splice(chips.indexOf(active), 1);
+    chips.splice(chips.indexOf(anchor) + 1, 0, active);
+  }
+
   const hidden = [];
   chips.forEach(c => { if (c.offsetTop > lastRowTop) { c.style.display = 'none'; hidden.push(c); } });
   toggle.textContent = `+${hidden.length}`;
@@ -1149,12 +1161,6 @@ function applyFilterOverflow() {
     hidden.push(last);
     toggle.textContent = `+${hidden.length}`;
   }
-  // Never filter by a chip you can't see. Expand without touching filtersExpanded, so
-  // the rows collapse again on their own once that category is no longer the filter.
-  if (hidden.some(c => c.classList.contains('active'))) {
-    hidden.forEach(c => { c.style.display = ''; });
-    toggle.remove();
-  }
 }
 
 function buildFilters() {
@@ -1164,6 +1170,8 @@ function buildFilters() {
   all.textContent = 'All';
   all.onclick = () => setFilter('All');
   filtersEl.appendChild(all);
+  // Right after All, so the +N collapse never hides it.
+  if (!categoriesEditMode) appendVisitedChip(filtersEl, setFilter);
 
   filterCategoryEntries().forEach(([key, cat]) => {
     const chip = document.createElement('button');
@@ -1180,7 +1188,6 @@ function buildFilters() {
     }
     filtersEl.appendChild(chip);
   });
-  if (!categoriesEditMode) appendVisitedChip(filtersEl, setFilter);
 
   if (categoriesEditMode) {
     const addChip = document.createElement('button');
@@ -1378,7 +1385,9 @@ function selectPlace(id, pan, flipToMap = true) {
   refreshMarkerIcon(id);
   buildList();
   const el = listEl.querySelector(`[data-id="${id}"]`);
-  if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  // A list tap only nudges the row into view. After adding or editing (flipToMap=false)
+  // centre it — 'nearest' parked new entries at the very bottom, under the toast.
+  if (el) el.scrollIntoView({ block: flipToMap ? 'nearest' : 'center', behavior: 'smooth' });
   // On mobile a list tap reveals the pin — flip to the map view (which centers on
   // the selected place and opens its popup), since the list can't show the map move.
   // Adding a place passes flipToMap=false: the list is where you want to land, and
@@ -1722,6 +1731,7 @@ async function autoFillFromName() {
       try {
         const saved = await commitNewPlace({ name: data.name, cat, addr: data.address, area: data.area || '', note: data.note || '', url: data.mapsUrl || '', lat: coords.lat, lng: coords.lng });
         closeAddModal();
+        if (!matchesFilter(saved)) setFilter('All');
         selectPlace(saved.id, true, false);
         showToast(`Added ${saved.name}`);
         return;
@@ -1875,6 +1885,7 @@ addForm.addEventListener('submit', async (e) => {
   try {
     const saved = await commitNewPlace({ name, cat, addr, area, note, url, lat: coords.lat, lng: coords.lng });
     closeAddModal();
+    if (!matchesFilter(saved)) setFilter('All');
     selectPlace(saved.id, true, false);
     showToast(`Added ${saved.name}`);
   } catch (err) {
@@ -1929,6 +1940,7 @@ function buildMapFilterChips() {
   all.textContent = 'All';
   all.onclick = () => { setFilter('All'); updateMapFilterHandle(); };
   el.appendChild(all);
+  appendVisitedChip(el, (key) => { setFilter(key); updateMapFilterHandle(); });
   filterCategoryEntries().forEach(([key, cat]) => {
     const chip = document.createElement('button');
     chip.className = 'chip' + (activeFilter === key ? ' active' : '');
@@ -1936,7 +1948,6 @@ function buildMapFilterChips() {
     chip.onclick = () => { setFilter(activeFilter === key ? 'All' : key); updateMapFilterHandle(); };
     el.appendChild(chip);
   });
-  appendVisitedChip(el, (key) => { setFilter(key); updateMapFilterHandle(); });
 }
 
 function updateMapFilterHandle() {
