@@ -63,7 +63,6 @@
       text-transform: uppercase;
       color: var(--muted);
       text-decoration: none;
-      margin-bottom: 14px;
       transition: color .15s;
     }
 
@@ -86,7 +85,10 @@
     }
 
     #count-label { font-size: .7rem; color: var(--muted); white-space: nowrap; }
-    .subhead-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 4px; }
+    /* Back link and the place count share the top line; the subtitle sits beside the
+       city name (wrapping under it when the name is long). */
+    .header-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .title-wrap { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; row-gap: 2px; min-width: 0; }
     .subhead { font-size: .92rem; font-weight: 400; color: var(--muted); font-family: 'Inter', sans-serif; }
     .cat-pill { flex: none; display: inline-block; font-size: .56rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border: 1px solid var(--border); border-radius: 20px; color: var(--muted); }
 
@@ -125,6 +127,8 @@
     .chip-more { letter-spacing: .04em; }
 
     .chip.editing { display: inline-flex; align-items: center; gap: 6px; }
+    .chip.editing .chip-count { margin-left: 0; }
+    .chip.editing.empty { border-style: dashed; color: var(--muted); }
     .chip-delete { font-size: .8rem; line-height: 1; opacity: .6; }
     @media (hover: hover) { .chip-delete:hover { opacity: 1; color: #c0392b; } }
     .chip-add { border-style: dashed; }
@@ -141,19 +145,19 @@
       outline: none;
     }
 
-    .chip-kebab {
-      font-size: .7rem;
+    .filters-break { flex-basis: 100%; height: 0; }
+    .edit-done {
+      margin-left: auto;
+      font-family: 'Inter', sans-serif;
+      font-size: .72rem;
       font-weight: 600;
-      padding: 4px 9px;
+      padding: 7px 18px;
       border-radius: 20px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--muted);
+      border: none;
+      background: #2a7de1;
+      color: #fff;
       cursor: pointer;
     }
-
-    @media (hover: hover) { .chip-kebab:hover { border-color: var(--text); color: var(--text); } }
-    .chip-kebab.active { background: var(--text); border-color: var(--text); color: #fff; }
 
     /* ── List ── */
     #place-list { flex: 1; overflow-y: auto; padding: 4px 0; }
@@ -380,7 +384,7 @@
         box-shadow: 0 4px 16px rgba(0,0,0,.25);
       }
 
-      .sidebar-header { padding: 18px 18px 12px; }
+      .sidebar-header { padding: 18px 18px 16px; }
       .sidebar-header h1 { font-size: 1.5rem; }
       .back-link { font-size: .75rem; }
       #count-label { font-size: .8rem; }
@@ -389,6 +393,7 @@
       .place-note { font-size: .82rem; }
       .place-meta { font-size: .78rem; }
       .place-item { padding: 15px 18px; }
+      .hotel-group { padding: 12px 18px; font-size: .9rem; }
       .place-actions { top: 14px; right: 16px; }
       #place-list { padding-bottom: 96px; }
     }
@@ -396,16 +401,15 @@
     /* ── Add place button ── */
     .header-main {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
       gap: 12px;
     }
 
-    /* Adding a place is the common action, so it gets its own button beside the kebab.
-       Both buttons are the same square box so the ⋯ centres on the + circle. */
+    /* Header actions: Near me and Add place, the same square box so they sit on one axis. */
     .header-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
 
-    .header-add-btn, .header-menu-btn {
+    .header-add-btn, .header-near-btn {
       flex-shrink: 0;
       width: 28px;
       height: 28px;
@@ -416,6 +420,21 @@
       cursor: pointer;
       transition: opacity .15s;
     }
+
+    /* Near me: outlined until on, then the same blue as your location dot. */
+    .header-near-btn {
+      padding: 0;
+      margin-right: 6px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+    }
+    .header-near-btn svg { width: 48%; height: 48%; display: block; }
+    @media (hover: hover) { .header-near-btn:hover { border-color: var(--text); } }
+    .header-near-btn.active { background: #2a7de1; border-color: #2a7de1; color: #fff; }
+    .header-near-btn.waiting svg { animation: locate-pulse 1s ease-in-out infinite; }
+    .place-dist { flex-shrink: 0; color: #2a7de1; font-weight: 500; }
 
     .header-add-btn {
       padding: 0;
@@ -432,13 +451,14 @@
 
     @media (hover: hover) { .header-add-btn:hover { opacity: .8; } }
 
-    .header-menu-wrap { position: relative; flex-shrink: 0; display: flex; }
-    .header-menu-btn { font-size: 1.2rem; color: var(--muted); background: none; border: none; padding: 0; border-radius: 6px; }
-    @media (hover: hover) { .header-menu-btn:hover { background: var(--light); color: var(--text); } }
-    .header-menu { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.14); min-width: 150px; z-index: 50; overflow: hidden; }
-    .header-menu.open { display: block; }
-    .header-menu button { display: block; width: 100%; text-align: left; padding: 10px 14px; font-size: .8rem; background: none; border: none; color: var(--text); cursor: pointer; white-space: nowrap; }
-    .header-menu button:hover { background: var(--light); }
+    /* Edit categories lives at the end of the pill row as a quiet pencil — not a pill. */
+    .chip-edit {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 26px; padding: 0;
+      background: none; border: none; color: var(--muted); cursor: pointer;
+    }
+    .chip-edit svg { width: 14px; height: 14px; }
+    @media (hover: hover) { .chip-edit:hover { color: var(--text); } }
 
     /* ── Tried toggle + delete on list items ── */
     .place-item-body { flex: 1; min-width: 0; }
@@ -486,6 +506,29 @@
     @media (hover: hover) { .pin-toggle:hover { color: var(--muted); } }
     .pin-toggle.pinned { color: #c8a96e; }
     .pin-toggle.pinned svg { fill: currentColor; }
+
+    .hotel-group {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      width: 100%;
+      padding: 11px 24px;
+      background: var(--light);
+      border: none;
+      border-bottom: 1px solid var(--border);
+      font-family: 'Inter', sans-serif;
+      font-size: .8rem;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .hotel-group .hotel-icon-wrap { margin-top: 0; }
+    .hotel-group-label { font-weight: 600; flex-shrink: 0; }
+    .hotel-group-names { flex: 1; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hotel-group-chevron { margin-left: auto; color: var(--muted); font-size: 1.1rem; line-height: 1; transition: transform .15s; }
+    .hotel-group.open .hotel-group-chevron { transform: rotate(90deg); }
+    @media (hover: hover) { .hotel-group:hover { background: var(--border); } }
 
     .hotel-icon-wrap {
       flex-shrink: 0;
@@ -749,9 +792,7 @@
     /* Mobile overrides that must come AFTER the component styles above to win. */
     @media (max-width: 680px) {
       /* Larger, easier-to-tap header menu items. */
-      .header-menu button { font-size: .95rem; padding: 12px 16px; }
-      .header-add-btn, .header-menu-btn { width: 34px; height: 34px; }
-      .header-menu-btn { font-size: 1.4rem; }
+      .header-add-btn, .header-near-btn { width: 34px; height: 34px; }
       /* Clear the fixed List/Map button, which shares this corner of the screen. */
       #toast-wrap { bottom: 78px; }
       /* 16px inputs stop iOS Safari from auto-zooming on focus. */
@@ -775,24 +816,23 @@
 <div id="app">
   <aside id="sidebar">
     <div class="sidebar-header">
-      <a class="back-link" href="index.html">← Foodie Notes</a>
+      <div class="header-top">
+        <a class="back-link" href="index.html">← Foodie Notes</a>
+        <span id="count-label"></span>
+      </div>
       <div class="header-main">
-        <h1 id="trip-title">Loading…</h1>
+        <div class="title-wrap">
+          <h1 id="trip-title">Loading…</h1>
+          <span id="trip-subtitle" class="subhead"></span>
+        </div>
         <div class="header-actions">
+          <button class="header-near-btn" id="near-me-btn" title="Near me" aria-label="Near me" onclick="toggleNearMe()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          </button>
           <button class="header-add-btn" title="Add place" aria-label="Add place" onclick="openAddModal()">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
           </button>
-          <div class="header-menu-wrap">
-            <button class="header-menu-btn" title="More" onclick="toggleHeaderMenu(event)">⋯</button>
-            <div class="header-menu" id="header-menu">
-              <button onclick="enterCategoryEdit(); closeHeaderMenu();">Edit categories</button>
-            </div>
-          </div>
         </div>
-      </div>
-      <div class="subhead-row">
-        <span id="trip-subtitle" class="subhead"></span>
-        <span id="count-label"></span>
       </div>
     </div>
     <div id="filters"></div>
@@ -933,19 +973,26 @@ function placeArea(p) {
   return p.area || shortAddr(p.addr);
 }
 
-function toggleHeaderMenu(ev) {
-  if (ev) ev.stopPropagation();
-  document.getElementById('header-menu').classList.toggle('open');
-}
-function closeHeaderMenu() {
-  const m = document.getElementById('header-menu');
-  if (m) m.classList.remove('open');
-}
 function enterCategoryEdit() {
   categoriesEditMode = true;
   buildFilters();
 }
-document.addEventListener('click', closeHeaderMenu);
+
+// Hotels lead the list, and two or three full rows of them fill a phone screen before
+// the first restaurant. They fold into one slim row, remembered on this device; the map
+// always shows them as the reference point.
+let hotelsOpen = false;
+try { hotelsOpen = localStorage.getItem('foodieHotelsOpen') === '1'; } catch (e) {}
+function toggleHotels() {
+  // A selected hotel holds the fold open (see buildList), so closing it deselects.
+  const sel = PLACES.find(p => p.id === selectedId);
+  const selHotel = sel && isHotelCat(sel.cat);
+  const open = hotelsOpen || selHotel;
+  if (open && selHotel) { selectedId = null; refreshMarkerIcon(sel.id); }
+  hotelsOpen = !open;
+  try { localStorage.setItem('foodieHotelsOpen', hotelsOpen ? '1' : '0'); } catch (e) {}
+  buildList();
+}
 
 // ── Toast + dialog UI kit ───────────────────────────────────────────
 function showToast(msg, kind) {
@@ -1007,8 +1054,9 @@ function askConfirm(title, message, opts) {
 let activeFilter = 'All';
 // A pseudo-filter alongside the categories: everything you've checked off.
 const VISITED = '__visited';
-const visitedCount = () => PLACES.filter(p => p.tried && !isHotelCat(p.cat)).length;
+const visitedCount = () => PLACES.filter(p => p.tried && !isHotelCat(p.cat) && isNearMe(p)).length;
 function matchesFilter(p) {
+  if (!isNearMe(p)) return false;
   if (activeFilter === 'All') return true;
   if (activeFilter === VISITED) return p.tried && !isHotelCat(p.cat);
   return p.cat === activeFilter;
@@ -1104,19 +1152,19 @@ function sortedCategoryEntries(includeHotel) {
     .sort((a, b) => a[1].label.localeCompare(b[1].label));
 }
 
+// Near me narrows the counts too, so the pills read "what's nearby". Edit mode counts
+// everything — a category is only deletable when it's empty everywhere.
 function categoryCount(key) {
-  return PLACES.filter(p => p.cat === key).length;
+  return PLACES.filter(p => p.cat === key && (categoriesEditMode || isNearMe(p))).length;
 }
 
 // Filter chips lead with the categories holding the most places, so the rows that
-// survive the collapse below are the ones actually worth tapping. Edit mode keeps
-// the alphabetical order — there you're hunting a specific name, not browsing.
-// Empty categories only show in edit mode (to rename or delete them), or while selected.
+// survive the collapse below are the ones actually worth tapping. Edit mode uses the
+// same order so it reads like the pills you know, with empty categories (only shown
+// there, to rename or delete, or while selected) falling to the end.
 function filterCategoryEntries() {
-  const entries = sortedCategoryEntries(false);
-  if (categoriesEditMode) return entries;
-  return entries
-    .filter(([key]) => categoryCount(key) > 0 || key === activeFilter)
+  return sortedCategoryEntries(false)
+    .filter(([key]) => categoriesEditMode || categoryCount(key) > 0 || key === activeFilter)
     .sort((a, b) => categoryCount(b[0]) - categoryCount(a[0]));
 }
 
@@ -1126,15 +1174,18 @@ let filtersExpanded = false;
 // hides behind a "+N" chip — which has to earn its own spot on the last visible row.
 function applyFilterOverflow() {
   if (categoriesEditMode) return;
-  const chips = [...filtersEl.children];
+  // The pencil always stays visible, after the +N toggle.
+  const edit = filtersEl.querySelector('.chip-edit');
+  const chips = [...filtersEl.children].filter(c => c !== edit);
   const maxRows = window.matchMedia('(max-width: 680px)').matches ? 2 : 3;
-  const rowTops = [...new Set(chips.map(c => c.offsetTop))].sort((a, b) => a - b);
+  const rowTops = [...new Set([...chips, edit].map(c => c.offsetTop))].sort((a, b) => a - b);
   if (rowTops.length <= maxRows) return;
 
   const toggle = document.createElement('button');
   toggle.className = 'chip chip-more';
   toggle.onclick = () => { filtersExpanded = !filtersExpanded; buildFilters(); };
   filtersEl.appendChild(toggle);
+  filtersEl.appendChild(edit);
 
   if (filtersExpanded) { toggle.textContent = 'Less'; return; }
 
@@ -1154,7 +1205,7 @@ function applyFilterOverflow() {
   chips.forEach(c => { if (c.offsetTop > lastRowTop) { c.style.display = 'none'; hidden.push(c); } });
   toggle.textContent = `+${hidden.length}`;
   // Appending the toggle can push it onto a row of its own — give back chips until it fits.
-  while (toggle.offsetTop > lastRowTop) {
+  while (toggle.offsetTop > lastRowTop || edit.offsetTop > lastRowTop) {
     const last = chips.filter(c => c.style.display !== 'none').pop();
     if (!last) break;
     last.style.display = 'none';
@@ -1175,9 +1226,13 @@ function buildFilters() {
 
   filterCategoryEntries().forEach(([key, cat]) => {
     const chip = document.createElement('button');
-    chip.className = 'chip' + (activeFilter === key ? ' active' : '') + (categoriesEditMode ? ' editing' : '');
+    const count = categoryCount(key);
+    chip.className = 'chip' + (activeFilter === key ? ' active' : '') + (categoriesEditMode ? ' editing' : '') + (categoriesEditMode && !count ? ' empty' : '');
     if (categoriesEditMode) {
-      chip.innerHTML = `<span class="chip-label">${cat.label}</span><span class="chip-delete" title="Delete category">×</span>`;
+      // Same order and counts as browsing, so you recognise the row. Only empty
+      // categories can be deleted, so only they get the × — tap any chip to rename.
+      chip.innerHTML = `<span class="chip-label">${cat.label}</span><span class="chip-count">${count}</span>` +
+        (count ? '' : '<span class="chip-delete" title="Delete category">×</span>');
       chip.onclick = (e) => {
         if (e.target.classList.contains('chip-delete')) { deleteCategory(key); return; }
         startRenameCategory(chip, key);
@@ -1188,6 +1243,16 @@ function buildFilters() {
     }
     filtersEl.appendChild(chip);
   });
+
+  if (!categoriesEditMode) {
+    const edit = document.createElement('button');
+    edit.className = 'chip-edit';
+    edit.title = 'Edit categories';
+    edit.setAttribute('aria-label', 'Edit categories');
+    edit.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+    edit.onclick = enterCategoryEdit;
+    filtersEl.appendChild(edit);
+  }
 
   if (categoriesEditMode) {
     const addChip = document.createElement('button');
@@ -1205,8 +1270,12 @@ function buildFilters() {
   }
 
   if (categoriesEditMode) {
+    // Done gets its own line, bottom-right, in a colour nothing else in the row uses.
+    const lineBreak = document.createElement('div');
+    lineBreak.className = 'filters-break';
+    filtersEl.appendChild(lineBreak);
     const done = document.createElement('button');
-    done.className = 'chip-kebab active';
+    done.className = 'edit-done';
     done.textContent = 'Done';
     done.onclick = () => { categoriesEditMode = false; buildFilters(); };
     filtersEl.appendChild(done);
@@ -1321,12 +1390,15 @@ function buildList() {
   const tryVisible = visible.filter(p => !isHotelCat(p.cat)).length;
   countEl.textContent = PLACES.length === 0
     ? 'No places yet'
-    : (activeFilter === 'All' ? `${tryTotal} places to try` : activeFilter === VISITED ? `${tryVisible} of ${tryTotal} visited` : `${tryVisible} of ${tryTotal} places`);
+    : nearMe ? `${tryVisible} within a mile`
+    : (activeFilter === 'All' ? `${tryTotal} ${tryTotal === 1 ? 'place' : 'places'}` : activeFilter === VISITED ? `${tryVisible} of ${tryTotal} visited` : `${tryVisible} of ${tryTotal} places`);
 
   if (PLACES.length === 0) {
     listEl.innerHTML = '<div class="empty-list">Nothing here yet — tap + up top to start building this trip.</div>';
     return;
   }
+
+  if (nearMe) { buildNearList(visible); return; }
 
   const sorted = [...visible].sort((a, b) => {
     const aHotel = isHotelCat(a.cat), bHotel = isHotelCat(b.cat);
@@ -1337,33 +1409,56 @@ function buildList() {
     return a.name.localeCompare(b.name);
   });
 
+  const hotels = sorted.filter(p => isHotelCat(p.cat));
+  // A hotel picked on the map has to be in the list to highlight, so it opens the fold.
+  const showHotels = hotelsOpen || hotels.some(p => p.id === selectedId);
+  if (hotels.length) {
+    const group = document.createElement('button');
+    group.type = 'button';
+    group.className = 'hotel-group' + (showHotels ? ' open' : '');
+    group.innerHTML = `
+      <span class="hotel-icon-wrap">${HOTEL_ICON_SVG}</span>
+      <span class="hotel-group-label">${hotels.length} ${hotels.length === 1 ? 'hotel' : 'hotels'}</span>
+      <span class="hotel-group-names"></span>
+      <span class="hotel-group-chevron">›</span>`;
+    group.querySelector('.hotel-group-names').textContent = showHotels ? '' : hotels.map(h => h.name).join(' · ');
+    group.onclick = toggleHotels;
+    listEl.appendChild(group);
+  }
+
   sorted.forEach(p => {
-    const cat = CATEGORIES[p.cat];
-    const isHotel = isHotelCat(p.cat);
-    const item = document.createElement('div');
-    item.className = 'place-item' + (selectedId === p.id ? ' selected' : '') + (p.tried ? ' tried' : '');
-    item.dataset.id = p.id;
-    item.innerHTML = `
-      ${isHotel ? `<span class="hotel-icon-wrap" title="Hotel">${HOTEL_ICON_SVG}</span>` : `<button class="tried-toggle${p.tried ? ' tried' : ''}" title="${p.tried ? 'Mark as not tried' : 'Mark as tried'}" onclick="toggleTried('${p.id}', event)">✓</button>`}
-      <div class="place-item-body">
-        <div class="place-name">${p.name}</div>
-        <div class="place-note">${p.note}</div>
-        <div class="place-meta"><span class="cat-pill">${cat ? cat.label : p.cat}</span> <a class="place-maps" href="${placeMapsLink(p)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${placeArea(p)}&nbsp;→</a></div>
-      </div>
-      <div class="place-actions">
-        <button class="pin-toggle${p.pinned ? ' pinned' : ''}" title="${p.pinned ? 'Unpin' : 'Pin'}" onclick="togglePinned('${p.id}', event)">${PIN_ICON_SVG}</button>
-        <div class="item-menu-wrap">
-          <button class="item-menu-btn" title="More" onclick="toggleItemMenu('${p.id}', event)">⋯</button>
-          <div class="item-menu${openMenuId === p.id ? ' open' : ''}">
-            <button onclick="openEditModal('${p.id}', event)">Edit</button>
-            <button class="danger" onclick="deletePlace('${p.id}', event)">Delete</button>
-          </div>
-        </div>
-      </div>`;
-    item.onclick = () => selectPlace(p.id, true);
-    listEl.appendChild(item);
+    if (isHotelCat(p.cat) && !showHotels) return;
+    renderPlaceRow(p);
   });
 }
+
+function renderPlaceRow(p, dist) {
+  const cat = CATEGORIES[p.cat];
+  const isHotel = isHotelCat(p.cat);
+  const item = document.createElement('div');
+  item.className = 'place-item' + (selectedId === p.id ? ' selected' : '') + (p.tried ? ' tried' : '');
+  item.dataset.id = p.id;
+  item.innerHTML = `
+    ${isHotel ? `<span class="hotel-icon-wrap" title="Hotel">${HOTEL_ICON_SVG}</span>` : `<button class="tried-toggle${p.tried ? ' tried' : ''}" title="${p.tried ? 'Mark as not tried' : 'Mark as tried'}" onclick="toggleTried('${p.id}', event)">✓</button>`}
+    <div class="place-item-body">
+      <div class="place-name">${p.name}</div>
+      <div class="place-note">${p.note}</div>
+      <div class="place-meta">${dist ? `<span class="place-dist">${dist}</span>` : ''}<span class="cat-pill">${cat ? cat.label : p.cat}</span> <a class="place-maps" href="${placeMapsLink(p)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${placeArea(p)}&nbsp;→</a></div>
+    </div>
+    <div class="place-actions">
+      <button class="pin-toggle${p.pinned ? ' pinned' : ''}" title="${p.pinned ? 'Unpin' : 'Pin'}" onclick="togglePinned('${p.id}', event)">${PIN_ICON_SVG}</button>
+      <div class="item-menu-wrap">
+        <button class="item-menu-btn" title="More" onclick="toggleItemMenu('${p.id}', event)">⋯</button>
+        <div class="item-menu${openMenuId === p.id ? ' open' : ''}">
+          <button onclick="openEditModal('${p.id}', event)">Edit</button>
+          <button class="danger" onclick="deletePlace('${p.id}', event)">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  item.onclick = () => selectPlace(p.id, true);
+  listEl.appendChild(item);
+}
+
 
 function toggleItemMenu(id, ev) {
   if (ev) ev.stopPropagation();
@@ -1926,6 +2021,8 @@ function toggleMobileView() {
         map.setView([p.lat, p.lng], Math.max(map.getZoom(), 15));
         marker.openPopup();
       }
+    } else if (nearMe && nearCircle) {
+      map.fitBounds(nearCircle.getBounds(), { padding: [10, 10] });
     } else {
       fitAllMarkers();
     }
@@ -1970,6 +2067,8 @@ async function init() {
     return;
   }
 
+  // Places and categories don't depend on the trip row, so fetch them alongside it.
+  const remoteState = loadRemoteState();
   let trip;
   try {
     const { data, error } = await sb.from('trips').select('*').eq('slug', CITY).maybeSingle();
@@ -1999,7 +2098,7 @@ async function init() {
   // keeps its look; maplibre-gl-leaflet renders it underneath the existing Leaflet markers.
   L.maplibreGL({ style: 'https://tiles.openfreemap.org/styles/positron' }).addTo(map);
 
-  await loadRemoteState();
+  await remoteState;
   PLACES.forEach(addMarkerFor);
   fitAllMarkers();
   populateCategorySelect();
@@ -2032,12 +2131,19 @@ function addLocateControl() {
   new Locate().addTo(map);
 }
 
+let locateBtn = null;
 function locateMe(btn) {
-  if (!navigator.geolocation) { showToast('Location isn\'t available on this device', 'danger'); return; }
+  locateBtn = btn;
   if (myLocation) { map.setView(myLocation, Math.max(map.getZoom(), 15)); return; }
   centreOnNextFix = true;
-  if (locateWatchId !== null) return;
   btn.classList.add('waiting');
+  startLocationWatch();
+}
+
+// One position watch serves both the map's locate button and Near me.
+function startLocationWatch() {
+  if (!navigator.geolocation) { locationFailed('Location isn\'t available on this device'); return; }
+  if (locateWatchId !== null) return;
   locateWatchId = navigator.geolocation.watchPosition((pos) => {
     myLocation = [pos.coords.latitude, pos.coords.longitude];
     const acc = pos.coords.accuracy || 0;
@@ -2048,15 +2154,109 @@ function locateMe(btn) {
       myDot.setLatLng(myLocation);
       myAccuracy.setLatLng(myLocation).setRadius(acc);
     }
-    btn.classList.remove('waiting');
-    btn.classList.add('active');
+    if (locateBtn) { locateBtn.classList.remove('waiting'); locateBtn.classList.add('active'); }
     if (centreOnNextFix) { centreOnNextFix = false; map.setView(myLocation, Math.max(map.getZoom(), 15)); }
+    onNearMeFix();
   }, (err) => {
     navigator.geolocation.clearWatch(locateWatchId);
     locateWatchId = null;
-    btn.classList.remove('waiting', 'active');
-    showToast(err.code === 1 ? 'Location permission is off for this site' : 'Couldn\'t find your location', 'danger');
+    locationFailed(err.code === 1 ? 'Location permission is off for this site' : 'Couldn\'t find your location');
   }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
+}
+
+function locationFailed(msg) {
+  if (locateBtn) locateBtn.classList.remove('waiting', 'active');
+  nearMePending = false;
+  document.getElementById('near-me-btn').classList.remove('waiting');
+  showToast(msg, 'danger');
+}
+
+// ── Near me ──────────────────────────────────────────────────────────
+// Walking distance: the list becomes everything within a mile, closest first, and
+// the category pills filter within that. Distances are straight-line, so the
+// minutes are a rough guide (~20 min a mile).
+const NEAR_ME_KM = 1.609;
+const NEAR_ME_REFRESH_KM = 0.05; // re-sort after you've walked ~50m
+let nearMe = false, nearMePending = false, nearMeAnchor = null, nearCircle = null;
+
+const meLatLng = () => ({ lat: myLocation[0], lng: myLocation[1] });
+function isNearMe(p) {
+  return !nearMe || !myLocation || distKm(meLatLng(), p) <= NEAR_ME_KM;
+}
+function formatWalk(km) {
+  const mi = km / 1.609;
+  const dist = mi < 0.1 ? `${Math.max(50, Math.round(mi * 5280 / 50) * 50)} ft` : `${mi.toFixed(1)} mi`;
+  return `${dist} · ${Math.max(1, Math.round(mi * 20))} min`;
+}
+
+function toggleNearMe() {
+  const btn = document.getElementById('near-me-btn');
+  if (nearMe || nearMePending) {
+    nearMe = nearMePending = false;
+    btn.classList.remove('active', 'waiting');
+    if (nearCircle) { nearCircle.remove(); nearCircle = null; }
+    refreshForNearMe();
+    fitAllMarkers();
+    return;
+  }
+  nearMePending = true;
+  btn.classList.add('waiting');
+  if (myLocation) onNearMeFix(); else startLocationWatch();
+}
+
+function onNearMeFix() {
+  if (nearMePending) {
+    nearMePending = false;
+    nearMe = true;
+    const btn = document.getElementById('near-me-btn');
+    btn.classList.remove('waiting');
+    btn.classList.add('active');
+    nearMeAnchor = null;
+    selectedId = null;
+  }
+  if (!nearMe) return;
+  const firstFix = !nearCircle;
+  if (firstFix) {
+    nearCircle = L.circle(myLocation, { radius: NEAR_ME_KM * 1000, color: '#2a7de1', weight: 1.5, dashArray: '5 6', fill: true, fillOpacity: .04, interactive: false }).addTo(map);
+    map.fitBounds(nearCircle.getBounds(), { padding: [10, 10] });
+  } else {
+    nearCircle.setLatLng(myLocation);
+  }
+  if (firstFix || !nearMeAnchor || distKm(nearMeAnchor, meLatLng()) > NEAR_ME_REFRESH_KM) {
+    nearMeAnchor = meLatLng();
+    refreshForNearMe();
+  }
+}
+
+function refreshForNearMe() {
+  buildFilters();
+  buildMapFilterChips();
+  buildList();
+  updateMarkers();
+}
+
+// The Near me list: closest first, visited included (you may want to go back),
+// hotels left to the map.
+function buildNearList(visible) {
+  const me = meLatLng();
+  const near = visible
+    .filter(p => !isHotelCat(p.cat))
+    .map(p => ({ p, km: distKm(me, p) }))
+    .sort((a, b) => a.km - b.km);
+  if (!near.length) {
+    const closest = PLACES
+      .filter(p => !isHotelCat(p.cat) && (activeFilter === 'All' || (activeFilter === VISITED ? p.tried : p.cat === activeFilter)))
+      .map(p => ({ p, km: distKm(me, p) }))
+      .sort((a, b) => a.km - b.km)[0];
+    const empty = document.createElement('div');
+    empty.className = 'empty-list';
+    empty.textContent = closest
+      ? `Nothing within a mile. Closest is ${closest.p.name}, ${(closest.km / 1.609).toFixed(1)} mi away.`
+      : 'Nothing within a mile.';
+    listEl.appendChild(empty);
+    return;
+  }
+  near.forEach(({ p, km }) => renderPlaceRow(p, formatWalk(km)));
 }
 
 function rebuildMarkers() {

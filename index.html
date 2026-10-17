@@ -47,7 +47,7 @@
 
     .header-row {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
       gap: 12px;
     }
@@ -90,17 +90,12 @@
       font-weight: 600;
     }
 
-    .trip-meta {
-      font-size: .75rem;
-      color: var(--muted);
-      margin-top: 3px;
-    }
+    /* Subtitle beside the name, as on the trip pages; long ones wrap underneath. */
+    .trip-title { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; row-gap: 2px; min-width: 0; }
 
-    .arrow {
-      font-size: .8em;
+    .trip-meta {
+      font-size: .8rem;
       color: var(--muted);
-      margin-left: 8px;
-      vertical-align: middle;
     }
 
     .empty-trips {
@@ -110,10 +105,30 @@
     }
 
     /* ── Kebabs + dropdown menus ── */
-    .page-menu-wrap, .trip-menu-wrap { position: relative; flex-shrink: 0; }
+    /* Same filled + as the trip pages' Add place button. */
+    .header-add-btn {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid var(--text);
+      background: var(--text);
+      color: #fff;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .header-add-btn svg { width: 50%; height: 50%; display: block; }
+    @media (hover: hover) { .header-add-btn:hover { opacity: .8; } }
+    @media (max-width: 680px) { .header-add-btn { width: 34px; height: 34px; } }
+
+    .trip-menu-wrap { position: relative; flex-shrink: 0; }
     .trip-menu-wrap { margin-left: 8px; }
 
-    .page-menu-btn, .trip-menu-btn {
+    .trip-menu-btn {
       width: 28px;
       height: 28px;
       border: 1px solid var(--border);
@@ -126,9 +141,9 @@
       transition: all .15s;
     }
 
-    .page-menu-btn:hover, .trip-menu-btn:hover { border-color: var(--text); color: var(--text); }
+    .trip-menu-btn:hover { border-color: var(--text); color: var(--text); }
 
-    .page-menu, .trip-menu {
+    .trip-menu {
       display: none;
       position: absolute;
       right: 0;
@@ -143,9 +158,9 @@
       overflow: hidden;
     }
 
-    .page-menu.open, .trip-menu.open { display: block; }
+    .trip-menu.open { display: block; }
 
-    .page-menu button, .trip-menu button {
+    .trip-menu button {
       display: block;
       width: 100%;
       text-align: left;
@@ -159,7 +174,7 @@
       cursor: pointer;
     }
 
-    .page-menu button:hover, .trip-menu button:hover { background: var(--light); }
+    .trip-menu button:hover { background: var(--light); }
     .trip-menu button.danger { color: #c0392b; }
 
     /* ── New/edit trip modal ── */
@@ -293,12 +308,9 @@
     <div class="eyebrow">Phil's</div>
     <div class="header-row">
       <h1>Foodie Notes</h1>
-      <div class="page-menu-wrap">
-        <button class="page-menu-btn" title="More" onclick="toggleNewTripMenu(event)">⋯</button>
-        <div class="page-menu" id="new-trip-menu">
-          <button onclick="openTripModal()">+ New foodie note</button>
-        </div>
-      </div>
+      <button class="header-add-btn" title="New foodie note" aria-label="New foodie note" onclick="openTripModal()">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </button>
     </div>
     <p style="font-size: .85rem; color: var(--muted); margin-top: 8px;">Places to try</p>
   </header>
@@ -444,9 +456,8 @@ function renderTrips() {
     li.className = 'trip-item';
     li.innerHTML = `
       <a href="trip.html?city=${encodeURIComponent(trip.slug)}">
-        <div>
-          <div class="trip-name">${trip.name}<span class="arrow">→</span></div>
-          <div class="trip-meta">${trip.subtitle || ''}</div>
+        <div class="trip-title">
+          <span class="trip-name">${trip.name}</span>${trip.subtitle ? `<span class="trip-meta">${trip.subtitle}</span>` : ''}
         </div>
       </a>
       <div class="trip-menu-wrap">
@@ -466,14 +477,8 @@ function toggleTripMenu(slug, ev) {
   renderTrips();
 }
 
-function toggleNewTripMenu(ev) {
-  if (ev) ev.stopPropagation();
-  document.getElementById('new-trip-menu').classList.toggle('open');
-}
-
 document.addEventListener('click', () => {
   if (openTripMenuSlug !== null) { openTripMenuSlug = null; renderTrips(); }
-  document.getElementById('new-trip-menu').classList.remove('open');
 });
 
 async function deleteTrip(slug, ev) {

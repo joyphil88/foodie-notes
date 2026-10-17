@@ -51,6 +51,10 @@ deploy.
 - Mobile inputs must be 16px or iOS zooms on focus.
 - Filter pills collapse to 2 rows (mobile) / 3 (desktop) behind a `+N` pill
   (`applyFilterOverflow`); the selected pill is moved up front so it never hides.
+  The Edit-categories pencil always stays visible after the `+N`.
+- **Near me** (header button) is a layer over the filters, not a filter pill:
+  `isNearMe()` feeds `matchesFilter()` and `categoryCount()`. It shares one
+  geolocation watch (`startLocationWatch`) with the map's locate button.
 
 ## Checking changes
 
