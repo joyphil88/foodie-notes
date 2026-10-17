@@ -42,7 +42,7 @@
       letter-spacing: .16em;
       text-transform: uppercase;
       color: var(--muted);
-      margin-bottom: 10px;
+      margin-bottom: 4px;
     }
 
     .header-row {
@@ -122,6 +122,9 @@
       transition: opacity .15s;
     }
     .header-add-btn svg { width: 50%; height: 50%; display: block; }
+    /* Centring on the h1's box puts the + ~4px above the lettering, which is mostly
+       lowercase and sits low in the line; nudge it onto the text's optical middle. */
+    .header-row .header-add-btn { margin-top: 8px; }
     @media (hover: hover) { .header-add-btn:hover { opacity: .8; } }
     @media (max-width: 680px) { .header-add-btn { width: 34px; height: 34px; } }
 
